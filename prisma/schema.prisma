@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+}
+
+model anexos {
+  id           String      @id(map: "PK__anexos__3213E83FD354DE4A") @default(dbgenerated("newid()"), map: "DF__anexos__id__47A6A41B") @db.UniqueIdentifier
+  chamado_id   String?     @db.UniqueIdentifier
+  interacao_id String?     @db.UniqueIdentifier
+  nome_arquivo String      @db.NVarChar(255)
+  url_arquivo  String      @db.NVarChar(Max)
+  tipo_arquivo String?     @db.VarChar(50)
+  created_at   DateTime    @default(now(), map: "DF__anexos__created___489AC854")
+  chamados     chamados?   @relation(fields: [chamado_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Anexos_Chamados")
+  interacoes   interacoes? @relation(fields: [interacao_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Anexos_Interacoes")
+}
+
+model chamados {
+  id                                                 String       @id(map: "PK__chamados__3213E83FE2BD7942") @default(dbgenerated("newid()"), map: "DF__chamados__id__3493CFA7") @db.UniqueIdentifier
+  empresa_origem_id                                  String       @db.UniqueIdentifier
+  requerente_id                                      String       @db.UniqueIdentifier
+  empresa_responsavel_id                             String       @db.UniqueIdentifier
+  tecnico_atribuido_id                               String?      @db.UniqueIdentifier
+  titulo                                             String       @db.NVarChar(200)
+  descricao                                          String       @db.NVarChar(Max)
+  categoria                                          String       @db.VarChar(50)
+  prioridade                                         String       @db.VarChar(20)
+  status                                             String       @default("NOVO", map: "DF_chamados_status") @db.VarChar(30)
+  data_limite_resposta                               DateTime?
+  data_limite_solucao                                DateTime?
+  tempo_gasto_minutos                                Int          @default(0, map: "DF__chamados__tempo___3864608B")
+  created_at                                         DateTime     @default(now(), map: "DF__chamados__create__395884C4")
+  updated_at                                         DateTime     @default(now(), map: "DF__chamados__update__3A4CA8FD")
+  anexos                                             anexos[]
+  empresas_chamados_empresa_origem_idToempresas      empresas     @relation("chamados_empresa_origem_idToempresas", fields: [empresa_origem_id], references: [id], onUpdate: NoAction, map: "FK_Chamados_EmpresaOrigem")
+  empresas_chamados_empresa_responsavel_idToempresas empresas     @relation("chamados_empresa_responsavel_idToempresas", fields: [empresa_responsavel_id], references: [id], onUpdate: NoAction, map: "FK_Chamados_EmpresaResponsavel")
+  usuarios_chamados_requerente_idTousuarios          usuarios     @relation("chamados_requerente_idTousuarios", fields: [requerente_id], references: [id], onUpdate: NoAction, map: "FK_Chamados_Requerente")
+  usuarios_chamados_tecnico_atribuido_idTousuarios   usuarios?    @relation("chamados_tecnico_atribuido_idTousuarios", fields: [tecnico_atribuido_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Chamados_Tecnico")
+  interacoes                                         interacoes[]
+}
+
+model config_slas {
+  id                   String   @id(map: "PK__config_s__3213E83F19702931") @default(dbgenerated("newid()"), map: "DF__config_slas__id__2EDAF651") @db.UniqueIdentifier
+  plano_id             String   @db.UniqueIdentifier
+  prioridade           String   @db.VarChar(20)
+  tempo_resposta_horas Int
+  tempo_solucao_horas  Int
+  created_at           DateTime @default(now(), map: "DF__config_sl__creat__30C33EC3")
+  planos               planos   @relation(fields: [plano_id], references: [id], onUpdate: NoAction, map: "FK_ConfigSlas_Planos")
+}
+
+model consumo_variavel {
+  id                 String   @id(map: "PK__consumo___3213E83FDE0270AA") @default(dbgenerated("newid()"), map: "DF__consumo_vari__id__282DF8C2") @db.UniqueIdentifier
+  empresa_id         String   @db.UniqueIdentifier
+  mes_referencia     String   @db.VarChar(7)
+  qtd_tokens         Int      @default(0, map: "DF__consumo_v__qtd_t__29221CFB")
+  custo_gerado_reais Decimal  @default(0.00, map: "DF__consumo_v__custo__2A164134") @db.Decimal(18, 2)
+  created_at         DateTime @default(now(), map: "DF__consumo_v__creat__2B0A656D")
+  empresas           empresas @relation(fields: [empresa_id], references: [id], onUpdate: NoAction, map: "FK_Consumo_Empresas")
+}
+
+model contratos {
+  id                      String                    @id(map: "PK__contrato__3213E83F820239B9") @default(dbgenerated("newid()"), map: "DF__contratos__id__18EBB532") @db.UniqueIdentifier
+  empresa_id              String                    @db.UniqueIdentifier
+  plano_id                String                    @db.UniqueIdentifier
+  valor_mensalidade       Decimal                   @db.Decimal(18, 2)
+  dia_vencimento          Int
+  status                  String                    @default("ATIVO", map: "DF__contratos__statu__1AD3FDA4") @db.VarChar(20)
+  created_at              DateTime                  @default(now(), map: "DF__contratos__creat__1CBC4616")
+  updated_at              DateTime                  @default(now(), map: "DF__contratos__updat__1DB06A4F")
+  empresas                empresas                  @relation(fields: [empresa_id], references: [id], onUpdate: NoAction, map: "FK_Contratos_Empresas")
+  planos                  planos                    @relation(fields: [plano_id], references: [id], onUpdate: NoAction, map: "FK_Contratos_Planos")
+  faturas                 faturas[]
+  ferramentas_contratadas ferramentas_contratadas[]
+}
+
+model empresas {
+  id                                                 String             @id(map: "PK__empresas__3213E83FA3448DB6") @default(dbgenerated("newid()"), map: "DF__empresas__id__70DDC3D8") @db.UniqueIdentifier
+  razao_social                                       String             @db.NVarChar(255)
+  nome_fantasia                                      String?            @db.NVarChar(255)
+  cnpj_cpf                                           String             @unique(map: "UQ__empresas__88A61F869F5B03E5") @db.VarChar(20)
+  inscricao_estadual                                 String?            @db.VarChar(50)
+  tipo_empresa                                       String             @db.VarChar(30)
+  status                                             String             @default("ATIVO", map: "DF__empresas__status__72C60C4A") @db.VarChar(20)
+  email_financeiro                                   String?            @db.VarChar(255)
+  telefone_principal                                 String?            @db.VarChar(20)
+  endereco_cep                                       String?            @db.VarChar(10)
+  endereco_logradouro                                String?            @db.NVarChar(255)
+  endereco_numero                                    String?            @db.VarChar(20)
+  endereco_cidade                                    String?            @db.NVarChar(100)
+  endereco_estado                                    String?            @db.Char(2)
+  ui_customizacao                                    String?            @db.NVarChar(Max)
+  created_at                                         DateTime           @default(now(), map: "DF__empresas__create__75A278F5")
+  updated_at                                         DateTime           @default(now(), map: "DF__empresas__update__76969D2E")
+  deleted_at                                         DateTime?
+  chamados_chamados_empresa_origem_idToempresas      chamados[]         @relation("chamados_empresa_origem_idToempresas")
+  chamados_chamados_empresa_responsavel_idToempresas chamados[]         @relation("chamados_empresa_responsavel_idToempresas")
+  consumo_variavel                                   consumo_variavel[]
+  contratos                                          contratos[]
+  faturas                                            faturas[]
+  usuarios                                           usuarios[]
+}
+
+model faturas {
+  id               String     @id(map: "PK__faturas__3213E83F3E993F8A") @default(dbgenerated("newid()"), map: "DF__faturas__id__4E53A1AA") @db.UniqueIdentifier
+  empresa_id       String     @db.UniqueIdentifier
+  contrato_id      String?    @db.UniqueIdentifier
+  asaas_payment_id String?    @unique(map: "UQ__faturas__F71B80A5428E79F1") @db.VarChar(100)
+  valor            Decimal    @db.Decimal(18, 2)
+  data_vencimento  DateTime   @db.Date
+  data_pagamento   DateTime?
+  status           String     @default("PENDENTE", map: "DF__faturas__status__4F47C5E3") @db.VarChar(20)
+  url_fatura       String?    @db.NVarChar(Max)
+  linha_digitavel  String?    @db.VarChar(100)
+  created_at       DateTime   @default(now(), map: "DF__faturas__created__51300E55")
+  updated_at       DateTime   @default(now(), map: "DF__faturas__updated__5224328E")
+  contratos        contratos? @relation(fields: [contrato_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_Faturas_Contratos")
+  empresas         empresas   @relation(fields: [empresa_id], references: [id], onUpdate: NoAction, map: "FK_Faturas_Empresas")
+}
+
+model ferramentas_contratadas {
+  contrato_id       String    @db.UniqueIdentifier
+  servico_id        String    @db.UniqueIdentifier
+  token_sso_cliente String?   @db.NVarChar(Max)
+  url_acesso        String?   @db.NVarChar(Max)
+  status_acesso     String    @default("LIBERADO", map: "DF__ferrament__statu__22751F6C") @db.VarChar(20)
+  contratos         contratos @relation(fields: [contrato_id], references: [id], onUpdate: NoAction, map: "FK_Ferramentas_Contratos")
+  servicos          servicos  @relation(fields: [servico_id], references: [id], onUpdate: NoAction, map: "FK_Ferramentas_Servicos")
+
+  @@id([contrato_id, servico_id], map: "PK__ferramen__1650620B74BB4629")
+}
+
+model interacoes {
+  id              String   @id(map: "PK__interaco__3213E83F33933500") @default(dbgenerated("newid()"), map: "DF__interacoes__id__40F9A68C") @db.UniqueIdentifier
+  chamado_id      String   @db.UniqueIdentifier
+  usuario_id      String   @db.UniqueIdentifier
+  mensagem        String   @db.NVarChar(Max)
+  is_nota_interna Boolean  @default(false, map: "DF__interacoe__is_no__41EDCAC5")
+  created_at      DateTime @default(now(), map: "DF__interacoe__creat__42E1EEFE")
+  anexos          anexos[]
+  chamados        chamados @relation(fields: [chamado_id], references: [id], onUpdate: NoAction, map: "FK_Interacoes_Chamados")
+  usuarios        usuarios @relation(fields: [usuario_id], references: [id], onUpdate: NoAction, map: "FK_Interacoes_Usuarios")
+}
+
+model perfis_acesso {
+  id                       String     @id(map: "PK__perfis_a__3213E83F3B03924F") @default(dbgenerated("newid()"), map: "DF__perfis_acess__id__797309D9") @db.UniqueIdentifier
+  nome                     String     @db.NVarChar(100)
+  descricao                String?    @db.NVarChar(255)
+  can_open_internal_ticket Boolean    @default(true, map: "DF__perfis_ac__can_o__7A672E12")
+  can_open_stellar_ticket  Boolean    @default(false, map: "DF__perfis_ac__can_o__7B5B524B")
+  can_manage_users         Boolean    @default(false, map: "DF__perfis_ac__can_m__7C4F7684")
+  created_at               DateTime   @default(now(), map: "DF__perfis_ac__creat__7D439ABD")
+  updated_at               DateTime   @default(now(), map: "DF__perfis_ac__updat__7E37BEF6")
+  deleted_at               DateTime?
+  usuarios                 usuarios[]
+}
+
+model planos {
+  id          String        @id(map: "PK__planos__3213E83F1B0F2E0B") @default(dbgenerated("newid()"), map: "DF__planos__id__123EB7A3") @db.UniqueIdentifier
+  nome        String        @db.NVarChar(100)
+  tipo_preco  String        @db.VarChar(20)
+  valor_base  Decimal       @default(0.00, map: "DF__planos__valor_ba__14270015") @db.Decimal(18, 2)
+  created_at  DateTime      @default(now(), map: "DF__planos__created___151B244E")
+  updated_at  DateTime      @default(now(), map: "DF__planos__updated___160F4887")
+  config_slas config_slas[]
+  contratos   contratos[]
+}
+
+model servicos {
+  id                      String                    @id(map: "PK__servicos__3213E83FFF66109D") @default(dbgenerated("newid()"), map: "DF__servicos__id__0B91BA14") @db.UniqueIdentifier
+  nome                    String                    @db.NVarChar(100)
+  descricao               String?                   @db.NVarChar(255)
+  icone_url               String?                   @db.NVarChar(Max)
+  status                  String                    @default("ATIVO", map: "DF__servicos__status__0C85DE4D") @db.VarChar(20)
+  created_at              DateTime                  @default(now(), map: "DF__servicos__create__0E6E26BF")
+  updated_at              DateTime                  @default(now(), map: "DF__servicos__update__0F624AF8")
+  ferramentas_contratadas ferramentas_contratadas[]
+}
+
+model usuarios {
+  id                                               String        @id(map: "PK__usuarios__3213E83FF1D9C74E") @default(dbgenerated("newid()"), map: "DF__usuarios__id__02084FDA") @db.UniqueIdentifier
+  empresa_id                                       String        @db.UniqueIdentifier
+  perfil_id                                        String        @db.UniqueIdentifier
+  nome                                             String        @db.NVarChar(255)
+  email                                            String        @unique(map: "UQ__usuarios__AB6E61643793B25B") @db.VarChar(255)
+  senha_hash                                       String        @db.VarChar(255)
+  telefone_whatsapp                                String?       @db.VarChar(20)
+  mfa_enabled                                      Boolean       @default(false, map: "DF__usuarios__mfa_en__02FC7413")
+  status                                           String        @default("ATIVO", map: "DF__usuarios__status__03F0984C") @db.VarChar(20)
+  created_at                                       DateTime      @default(now(), map: "DF__usuarios__create__05D8E0BE")
+  updated_at                                       DateTime      @default(now(), map: "DF__usuarios__update__06CD04F7")
+  deleted_at                                       DateTime?
+  chamados_chamados_requerente_idTousuarios        chamados[]    @relation("chamados_requerente_idTousuarios")
+  chamados_chamados_tecnico_atribuido_idTousuarios chamados[]    @relation("chamados_tecnico_atribuido_idTousuarios")
+  interacoes                                       interacoes[]
+  empresas                                         empresas      @relation(fields: [empresa_id], references: [id], onUpdate: NoAction, map: "FK_Usuarios_Empresas")
+  perfis_acesso                                    perfis_acesso @relation(fields: [perfil_id], references: [id], onUpdate: NoAction, map: "FK_Usuarios_Perfis")
+}
+
+model webhook_logs_asaas {
+  id                   String   @id(map: "PK__webhook___3213E83F5B728CB0") @default(dbgenerated("newid()"), map: "DF__webhook_logs__id__56E8E7AB") @db.UniqueIdentifier
+  evento_asaas         String   @db.VarChar(50)
+  asaas_payment_id     String   @db.VarChar(100)
+  payload_completo     String   @db.NVarChar(Max)
+  status_processamento String   @default("PENDENTE", map: "DF__webhook_l__statu__58D1301D") @db.VarChar(20)
+  erro_detalhe         String?  @db.NVarChar(Max)
+  created_at           DateTime @default(now(), map: "DF__webhook_l__creat__5AB9788F")
+}
