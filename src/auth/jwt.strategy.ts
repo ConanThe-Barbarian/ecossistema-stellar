@@ -20,11 +20,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: any) {
+async validate(payload: any) {
+    // O que você retornar aqui será injetado no 'req.user'
     return { 
       userId: payload.sub, 
       email: payload.email, 
-      nome: payload.nome 
+      nome: payload.nome,
+      empresa_id: payload.empresa_id, // Adicionado
+      perfil: payload.perfil,         // Adicionado
+      permissoes: payload.permissoes  // ESSENCIAL para o PermissionsGuard funcionar!
     };
   }
 }

@@ -1,14 +1,19 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { AppService } from './app.service';
+import { PermissionsGuard } from './auth/guards/permissions.guard';
+import { RequirePermission } from './auth/decorators/permissions.decorator';
+import { CurrentUser } from './auth/decorators/current-user.decorator'; // Importe aqui!
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
-
-  @UseGuards(AuthGuard('jwt')) // ESTA LINHA É O BOUNCER! Bloqueia quem não tem o token.
+  
+  @UseGuards(AuthGuard('jwt'), PermissionsGuard)
+  @RequirePermission('can_manage_users')
   @Get()
-  getHello() {
-    return this.appService.getHello();
+  getHello(@CurrentUser() usuarioDaSessao) { // Olha a mágica aqui!
+    return {
+      message: `Acesso Confirmado, ${usuarioDaSessao.nome}!`,
+      dados_da_sessao: usuarioDaSessao // Não precisa mais do req.user
+    };
   }
 }

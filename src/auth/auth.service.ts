@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaService } from '../prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -10,26 +10,36 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  // 1. Validar se o usuário existe e se a senha bate com o hash
+  // 1. Valida usuário, mas agora traz os "poderes" junto!
   async validateUser(email: string, pass: string): Promise<any> {
     const user = await this.prisma.usuarios.findUnique({
-      where: { email }, // Usando o campo email único do seu schema
+      where: { email },
+      include: { 
+        perfis_acesso: true, // Puxa os dados da tabela perfis_acesso
+        empresas: true       // Aproveitamos para trazer a empresa, será útil nos chamados!
+      }
     });
 
-    // Compara a senha enviada com o campo senha_hash do banco
     if (user && (await bcrypt.compare(pass, user.senha_hash))) {
-      const { senha_hash, ...result } = user; // Remove o hash por segurança
+      const { senha_hash, ...result } = user;
       return result;
     }
     return null;
   }
 
-  // 2. Gerar o passaporte (Token JWT)
+  // 2. Gera o Token com as permissões embutidas
   async login(user: any) {
     const payload = { 
       email: user.email, 
       sub: user.id,
-      nome: user.nome // Incluindo o nome que está no seu schema
+      nome: user.nome,
+      empresa_id: user.empresa_id,
+      perfil: user.perfis_acesso.nome, // Ex: "Admin", "Cliente"
+      permissoes: {
+        can_manage_users: user.perfis_acesso.can_manage_users,
+        can_open_internal_ticket: user.perfis_acesso.can_open_internal_ticket,
+        can_open_stellar_ticket: user.perfis_acesso.can_open_stellar_ticket
+      }
     };
     
     return {
@@ -37,22 +47,20 @@ export class AuthService {
     };
   }
 
-  // Adicione este método dentro da classe AuthService
-async register(data: any) {
-  // 1. Gera o "tempero" (salt) e o hash da senha
-  const salt = await bcrypt.genSalt(10);
-  const hashedPass = await bcrypt.hash(data.password, salt);
+  // Mantemos o registro igualzinho
+  async register(data: any) {
+    const salt = await bcrypt.genSalt(10);
+    const hashedPass = await bcrypt.hash(data.password, salt);
 
-  // 2. Salva no banco usando os nomes exatos do seu schema
-  return this.prisma.usuarios.create({
-    data: {
-      nome: data.nome,
-      email: data.email,
-      senha_hash: hashedPass, // Salvando no campo correto [cite: 56]
-      empresa_id: data.empresa_id, // UUID da empresa [cite: 54]
-      perfil_id: data.perfil_id,   // UUID do perfil [cite: 54]
-      status: 'ATIVO',
-    },
-  });
-}
+    return this.prisma.usuarios.create({
+      data: {
+        nome: data.nome,
+        email: data.email,
+        senha_hash: hashedPass,
+        empresa_id: data.empresa_id,
+        perfil_id: data.perfil_id,
+        status: 'ATIVO',
+      },
+    });
+  }
 }
