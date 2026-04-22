@@ -1,19 +1,22 @@
 import { config } from 'dotenv';
 config();
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module.js'; // Adicione o .js aqui!
+import { AppModule } from './app.module.js'; 
 import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Cast para NestExpressApplication para habilitar métodos do Express como useStaticAssets
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   
   // Ativando a validação global
   app.useGlobalPipes(new ValidationPipe({
-    whitelist: true, // Segurança pesada: Remove qualquer campo do JSON que não esteja definido no DTO!
-    forbidNonWhitelisted: true, // Retorna erro se o usuário tentar mandar campos extras "secretos"
-    transform: true, // Transforma os dados do JSON no tipo correto da classe
+    whitelist: true, 
+    forbidNonWhitelisted: true, 
+    transform: true, 
   }));
 
-  await app.listen(3000);
+  await app.listen(3000,'0.0.0.0');
 }
 bootstrap();

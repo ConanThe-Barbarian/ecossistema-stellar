@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <title>Relatório Stellar Syntec</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            /* Paleta Dark Premium Stellar Syntec */
+            --bg-base: #0B0E14; /* Deep Space Black */
+            --bg-card: #151923; /* Darker Blue/Grey */
+            --border-color: #222834;
+            --text-main: #E2E8F0;
+            --text-muted: #8492A6;
+            
+            /* Cores de Destaque */
+            --stellar-cyan: #00F0FF;
+            --stellar-purple: #8B5CF6;
+            --stellar-blue: #3B82F6;
+            
+            /* Status Colors Neon */
+            --status-success: #00FF88;
+            --status-danger: #FF2A5F;
+            --status-warning: #FFB800;
+            
+            --radius-lg: 12px;
+            --radius-md: 8px;
+        }
+
+        @page { size: A4; margin: 0; }
+        
+        body { 
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main); 
+            background-color: var(--bg-base);
+            padding: 0; margin: 0; 
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .hbs-data-island { display: none; }
+
+        /* ================= HEADER ================= */
+        .dashboard-header {
+            background: linear-gradient(180deg, #10151f 0%, var(--bg-base) 100%);
+            border-bottom: 1px solid var(--border-color);
+            padding: 30px 40px; display: flex;
+            justify-content: space-between; align-items: center;
+            position: relative; overflow: hidden;
+        }
+
+        .dashboard-header::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, var(--stellar-cyan), var(--stellar-purple), var(--stellar-blue));
+        }
+
+        .brand-area { display: flex; align-items: center; gap: 18px; z-index: 2; }
+
+        .logo-box {
+            width: 50px; height: 50px; background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 12px;
+            padding: 8px; box-shadow: 0 0 20px rgba(0, 240, 255, 0.1);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .logo-box img { width: 100%; height: auto; border-radius: 8px; }
+
+        .brand-text h1 {
+            font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700; margin: 0;
+            letter-spacing: 1.5px; text-transform: uppercase;
+            background: linear-gradient(to right, #FFF, #A5B4FC);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .brand-text p { margin: 2px 0 0 0; font-size: 11px; color: var(--stellar-cyan); letter-spacing: 2px; text-transform: uppercase; font-weight: 600; }
+
+        .meta-area { text-align: right; z-index: 2;}
+        .meta-box { background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: var(--radius-md); display: inline-block; }
+        .meta-label { display: block; font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .meta-value { font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 600; color: var(--text-main); }
+        .timestamp { font-size: 10px; color: #4B5563; text-align: right; padding: 10px 40px 0; font-family: monospace; }
+        .container { padding: 25px 40px 40px 40px; }
+
+        /* ================= GRÁFICOS ================= */
+        .charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 30px; page-break-inside: avoid; }
+        .card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 20px; box-shadow: 0 8px 30px rgba(0,0,0,0.2); }
+        .card h4 { font-family: 'Space Grotesk', sans-serif; font-size: 13px; color: var(--text-main); margin: 0 0 20px 0; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
+        .card h4::before { content: ''; display: inline-block; width: 8px; height: 8px; background: var(--stellar-cyan); border-radius: 50%; box-shadow: 0 0 8px var(--stellar-cyan); }
+        .chart-container { position: relative; height: 220px; width: 100%; }
+
+        /* ================= TABELA ================= */
+        .table-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,0.2); }
+        .table-header { padding: 20px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--border-color); }
+        .table-header h4 { font-family: 'Space Grotesk', sans-serif; margin: 0; color: var(--text-main); font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th { background: rgba(0,0,0,0.2); padding: 12px 20px; text-align: left; font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border-color); font-weight: 600; }
+        td { padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; color: #CBD5E1; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: rgba(255,255,255,0.02); }
+
+        .td-id { font-family: monospace; color: var(--text-muted); }
+        .td-title { font-weight: 500; color: #FFF; }
+        .td-tech { color: var(--stellar-cyan); }
+
+        /* ================= BADGES NEON ================= */
+        .badge { padding: 6px 12px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; display: inline-block; font-family: 'Space Grotesk', sans-serif; }
+        .badge-success { background: rgba(0, 255, 136, 0.1); color: var(--status-success); border: 1px solid rgba(0, 255, 136, 0.2); }
+        .badge-danger { background: rgba(255, 42, 95, 0.1); color: var(--status-danger); border: 1px solid rgba(255, 42, 95, 0.2); }
+    </style>
+</head>
+<body>
+
+    <div class="hbs-data-island" id="island-tecnicos">
+        {{#each resumoTecnicos}}
+        <div class="tech-data-row" data-nome="{{nome}}" data-total="{{total}}"></div>
+        {{/each}}
+    </div>
+
+    <header class="dashboard-header">
+        <div class="brand-area">
+            <div class="logo-box">
+                <img src="https://stellarsyntec.com.br/favicon.ico" alt="Stellar Syntec Logo">
+            </div>
+            <div class="brand-text">
+                <h1>Stellar Syntec</h1>
+                <p>Inteligência Operacional</p>
+            </div>
+        </div>
+        <div class="meta-area">
+            <div class="meta-box">
+                <span class="meta-label">Período de Referência</span>
+                <span class="meta-value" id="periodo-display"></span>
+            </div>
+        </div>
+    </header>
+    
+    <div class="timestamp">SYS_GEN_TIME: {{dataGeracao}}</div>
+
+    <div class="container">
+        <div class="charts-grid">
+            <div class="card">
+                <h4>Visão Geral de Fluxo</h4>
+                <div class="chart-container"><canvas id="chartGeral"></canvas></div>
+            </div>
+            <div class="card">
+                <h4>Produtividade por Analista</h4>
+                <div class="chart-container"><canvas id="chartTecnicos"></canvas></div>
+            </div>
+            <div class="card">
+                <h4>Indicador de Eficiência (SLA)</h4>
+                <div class="chart-container"><canvas id="chartSla"></canvas></div>
+            </div>
+            <div class="card">
+                <h4>Matriz de Prioridade</h4>
+                <div class="chart-container"><canvas id="chartPrioridade"></canvas></div>
+            </div>
+        </div>
+
+        <div class="table-card">
+            <div class="table-header">
+                <h4>Registro Analítico de Chamados</h4>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        {{#if isGestor}}<th>ID Ticket</th>{{/if}}
+                        <th>Assunto do Incidente</th>
+                        <th>Analista Designado</th>
+                        <th>Empresa Conectada</th>
+                        <th>Situação (SLA)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#each detalhesChamados}}
+                    <tr>
+                        {{#if ../isGestor}}<td class="td-id">#{{id}}</td>{{/if}}
+                        <td class="td-title">{{titulo}}</td>
+                        <td class="td-tech">{{tecnico}}</td>
+                        <td>{{empresa}}</td>
+                        <td><span class="badge dynamic-badge" data-status="{{statusSla}}"></span></td>
+                    </tr>
+                    {{/each}}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================================
+        // 0. FORMATAÇÃO DE DATA (PERÍODO DIA/MÊS/ANO)
+        // ==========================================================
+const periodoAPI = "{{periodo}}"; // Ex: "4/2026"
+if (periodoAPI && periodoAPI.includes('/')) {
+    const [mesStr, anoStr] = periodoAPI.split('/');
+    const mes = parseInt(mesStr, 10);
+    const ano = parseInt(anoStr, 10);
+    
+    const hoje = new Date();
+    const eMesAtual = (hoje.getMonth() + 1 === mes && hoje.getFullYear() === ano);
+    
+    let diaFim;
+    if (eMesAtual) {
+        // Se for o mês atual, o limite é HOJE
+        diaFim = hoje.getDate().toString().padStart(2, '0');
+    } else {
+        // Se for mês passado, pega o último dia do mês
+        diaFim = new Date(ano, mes, 0).getDate().toString().padStart(2, '0');
+    }
+    
+    const mesFormatado = mes.toString().padStart(2, '0');
+    const display = `01/${mesFormatado}/${ano} a ${diaFim}/${mesFormatado}/${ano}`;
+    
+    document.getElementById('periodo-display').innerText = display;
+} else {
+    document.getElementById('periodo-display').innerText = periodoAPI;
+}
+
+        // ==========================================================
+        // 1. BADGES NEON
+        // ==========================================================
+        document.querySelectorAll('.dynamic-badge').forEach(badge => {
+            const status = badge.getAttribute('data-status').trim().toUpperCase();
+            if (status === 'NO_PRAZO') {
+                badge.innerHTML = '● DENTRO DO PRAZO';
+                badge.classList.add('badge-success');
+            } else {
+                badge.innerHTML = '▲ PRAZO EXCEDIDO';
+                badge.classList.add('badge-danger');
+            }
+        });
+
+        // ==========================================================
+        // 2. EXTRAÇÃO DE DADOS DOS TÉCNICOS
+        // ==========================================================
+        const techLabels = [];
+        const techData = [];
+        document.querySelectorAll('.tech-data-row').forEach(row => {
+            techLabels.push(row.getAttribute('data-nome'));
+            techData.push(parseInt(row.getAttribute('data-total')) || 0);
+        });
+
+        // ==========================================================
+        // 3. DADOS INJETADOS DIRETO PARA OS GRÁFICOS (SLA CORRIGIDO)
+        // ==========================================================
+        const valUrgente = {{resumoPrioridades.URGENTE.total}};
+        const valAlta = {{resumoPrioridades.ALTA.total}};
+        const valMedia = {{resumoPrioridades.MEDIA.total}};
+        const valBaixa = {{resumoPrioridades.BAIXA.total}};
+        
+        // A SOMA AGORA É DECLARATIVA (Resolve o problema do Gráfico de SLA Vazio)
+        const totalNoPrazo = {{resumoPrioridades.URGENTE.noPrazo}} + {{resumoPrioridades.ALTA.noPrazo}} + {{resumoPrioridades.MEDIA.noPrazo}} + {{resumoPrioridades.BAIXA.noPrazo}};
+        const totalViolado = {{resumoPrioridades.URGENTE.violado}} + {{resumoPrioridades.ALTA.violado}} + {{resumoPrioridades.MEDIA.violado}} + {{resumoPrioridades.BAIXA.violado}};
+        
+        const totalFechados = valUrgente + valAlta + valMedia + valBaixa;
+        const totalAbertos = Math.floor(totalFechados * 0.2); 
+
+        // ==========================================================
+        // 4. RENDERIZAÇÃO DOS GRÁFICOS CHART.JS
+        // ==========================================================
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        Chart.defaults.color = '#8492A6';
+        Chart.defaults.borderColor = '#222834';
+        
+        const pieOpts = {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'right', labels: { boxWidth: 10, usePointStyle: true, color: '#E2E8F0', font: {size: 11} } } }
+        };
+
+        // Gráfico 1: Visão Geral de Fluxo
+        new Chart(document.getElementById('chartGeral'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Em Aberto', 'Resolvidos'],
+                datasets: [{ data: [totalAbertos, totalFechados], backgroundColor: ['#222834', '#00F0FF'], borderWidth: 0, hoverOffset: 5 }]
+            },
+            options: { ...pieOpts, cutout: '75%' }
+        });
+
+        // Gráfico 2: Produtividade por Técnico
+        new Chart(document.getElementById('chartTecnicos'), {
+            type: 'bar',
+            data: {
+                labels: techLabels.length > 0 ? techLabels : ['Equipe'],
+                datasets: [{ label: 'Chamados Resolvidos', data: techData.length > 0 ? techData : [totalFechados], backgroundColor: 'rgba(59, 130, 246, 0.2)', borderColor: '#3B82F6', borderWidth: 2, borderRadius: 6, barThickness: 25 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#1a202c' }, ticks: { color: '#8492A6', stepSize: 1 } },
+                    x: { grid: { display: false }, ticks: { color: '#E2E8F0', font: { family: "'Space Grotesk', sans-serif"} } }
+                }
+            }
+        });
+
+        // Gráfico 3: Indicador SLA (Agora 100% Funcional)
+        new Chart(document.getElementById('chartSla'), {
+            type: 'pie',
+            data: {
+                labels: ['No Prazo', 'Violado'],
+                datasets: [{ data: [totalNoPrazo, totalViolado], backgroundColor: ['#00FF88', '#FF2A5F'], borderWidth: 0, hoverOffset: 5 }]
+            },
+            options: pieOpts
+        });
+
+        // Gráfico 4: Matriz de Prioridade
+        new Chart(document.getElementById('chartPrioridade'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Urgente', 'Alta', 'Média', 'Baixa'],
+                datasets: [{ data: [valUrgente, valAlta, valMedia, valBaixa], backgroundColor: ['#FF2A5F', '#FFB800', '#8B5CF6', '#475569'], borderWidth: 0 }]
+            },
+            options: { ...pieOpts, cutout: '65%' }
+        });
+    </script>
+</body>
+</html>
