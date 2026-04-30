@@ -1,5 +1,6 @@
 import { Controller, Post, Param, UseGuards } from '@nestjs/common';
 import { FaturasService } from './faturas.service';
+
 // Se quiser blindar a rota depois, pode importar o seu JwtAuthGuard aqui
 
 @Controller('financeiro/faturas')

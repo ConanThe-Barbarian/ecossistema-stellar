@@ -49,4 +49,41 @@ private async dispararEvolution(payload: any) {
     headers: { 'apikey': process.env.EVOLUTION_API_KEY }
   });
 }
+
+async enviarWhatsAppLembreteVencimento(telefone: string, nome: string, valor: string, dataVencimento: string, linkFatura: string) {
+  const payload = {
+    number: this.formatarNumero(telefone),
+    text: `🔔 *Lembrete de Pagamento - Stellar Syntec*\n\nPrezado(a) *${nome}*,\n\nPassamos para lembrar que sua fatura no valor de *R$ ${valor}* vence em breve (*${dataVencimento}*).\n\nPara sua comodidade, pode aceder à fatura aqui: \n${linkFatura}\n\nCaso já tenha efetuado o pagamento, por favor ignore esta mensagem.`,
+    delay: 1200,
+    linkPreview: true
+  };
+  await this.dispararEvolution(payload);
+}
+
+// 2️⃣ Alerta de Atraso (Enviado após o vencimento)
+async enviarWhatsAppAlertaAtraso(telefone: string, nome: string, linkFatura: string) {
+  const payload = {
+    number: this.formatarNumero(telefone),
+    text: `⚠️ *Aviso de Pendência - Stellar Syntec*\n\nPrezado(a) *${nome}*,\n\nidentificamos que o pagamento da sua mensalidade consta como pendente em nosso sistema.\n\nPedimos a gentileza de regularizar o acesso através do link abaixo para evitar a suspensão dos serviços:\n${linkFatura}\n\nSe precisar de ajuda ou de uma segunda via, estamos à disposição!`,
+    delay: 1200,
+    linkPreview: true
+  };
+  await this.dispararEvolution(payload);
+}
+
+// Método auxiliar para garantir o formato do número
+private formatarNumero(tel: string) {
+  const limpo = tel.replace(/\D/g, '');
+  return limpo.startsWith('55') ? limpo : `55${limpo}`;
+}
+
+async enviarWhatsAppFaturaGerada(telefone: string, nome: string, valor: string, vencimento: string, linkFatura: string) {
+  const payload = {
+    number: this.formatarNumero(telefone),
+    text: `📄 *Fatura Disponível - Stellar Syntec*\n\nPrezado(a) *${nome}*,\n\ninformamos que a fatura da sua mensalidade já está disponível para pagamento.\n\n*Vencimento:* ${vencimento}\n*Valor:* R$ ${valor}\n\n*Acesse o documento para pagamento aqui:* \n${linkFatura}\n\nAgradecemos a parceria. Se tiver qualquer dúvida, nossa equipe financeira está à disposição.`,
+    delay: 1200,
+    linkPreview: true 
+  };
+  await this.dispararEvolution(payload);
+}
 }
