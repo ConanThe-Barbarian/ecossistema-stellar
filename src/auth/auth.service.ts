@@ -29,23 +29,28 @@ export class AuthService {
 
   // 2. Gera o Token com as permissões embutidas
   async login(user: any) {
-    const payload = { 
-      email: user.email, 
-      sub: user.id,
+  // 🛡️ Blindagem Vortex: Verificamos se o objeto existe antes de ler as propriedades
+  const payload = { 
+    sub: user.id, 
+    email: user.email,
+    nome: user.nome,
+    // Usamos ?. para não quebrar o código se o perfil ou empresa vierem nulos
+    perfil: user.perfis_acesso?.nome || 'PERFIL_NAO_DEFINIDO',
+    empresa_id: user.empresa_id,
+    empresa_nome: user.empresas?.razao_social || 'EMPRESA_NAO_DEFINIDA'
+  };
+
+  return {
+    access_token: this.jwtService.sign(payload),
+    user: {
+      id: user.id,
       nome: user.nome,
-      empresa_id: user.empresa_id,
-      perfil: user.perfis_acesso.nome, // Ex: "Admin", "Cliente"
-      permissoes: {
-        can_manage_users: user.perfis_acesso.can_manage_users,
-        can_open_internal_ticket: user.perfis_acesso.can_open_internal_ticket,
-        can_open_stellar_ticket: user.perfis_acesso.can_open_stellar_ticket
-      }
-    };
-    
-    return {
-      access_token: this.jwtService.sign(payload),
-    };
-  }
+      email: user.email,
+      perfil: user.perfis_acesso?.nome,
+      empresa: user.empresas?.razao_social
+    }
+  };
+}
 
   // Mantemos o registro igualzinho
   async register(data: any) {

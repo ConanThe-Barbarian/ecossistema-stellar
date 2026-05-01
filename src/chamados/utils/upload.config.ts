@@ -4,30 +4,24 @@ import { diskStorage } from 'multer';
 import { randomUUID } from 'crypto';
 import * as fs from 'fs';
 
-
 const uploadPath = './uploads/chamados';
 if (!fs.existsSync(uploadPath)) {
   fs.mkdirSync(uploadPath, { recursive: true });
 }
 
-
 export const multerConfig = {
-  
   storage: diskStorage({
     destination: (req, file, cb) => {
       cb(null, uploadPath); 
     },
     filename: (req, file, cb) => {
-      
       const fileName = randomUUID();
       const extension = extname(file.originalname).toLowerCase();
       cb(null, `${fileName}${extension}`);
     },
   }),
-
-  
   limits: {
-    fileSize: 5 * 1024 * 1024, 
+    fileSize: 5 * 1024 * 1024, // 5MB
   },
   fileFilter: (req: any, file: any, cb: any) => {
     const extensoesPermitidas = /jpeg|jpg|png|pdf|log|docx/;

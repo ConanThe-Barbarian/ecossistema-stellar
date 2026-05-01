@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "sqlserver"
+  url      = env("DATABASE_URL")
 }
 
 model anexos {
@@ -155,6 +156,7 @@ model perfis_acesso {
   created_at               DateTime   @default(now(), map: "DF__perfis_ac__creat__7D439ABD")
   updated_at               DateTime   @default(now(), map: "DF__perfis_ac__updat__7E37BEF6")
   deleted_at               DateTime?
+  can_generate_invoices    Boolean    @default(false, map: "DF__perfis_ac__can_g__607251E5")
   usuarios                 usuarios[]
 }
 

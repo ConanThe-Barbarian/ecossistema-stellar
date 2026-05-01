@@ -1,20 +1,21 @@
-// src/relatorios/api-key.guard.ts
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {  CanActivate, ExecutionContext, Injectable, UnauthorizedException, InternalServerErrorException } from '@nestjs/common';
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const authHeader = request.headers.authorization;
+    const apiKey = request.headers['x-api-key'] || request.query['apiKey'];
 
-    // A chave mestra que o n8n vai usar (O ideal é depois colocar no seu arquivo .env)
-    const CHAVE_SECRETA = process.env.API_KEY_N8N || 'Stellar-SecretasdihnwlaikdnlaXvL6STXeYTpxHYSthAmZBnqWqB8gwUeZlF0fKBkc55BEjVc2G3IUUnCGbViVNPXUsdinlawidnasldknliwandlias';
+    const CHAVE_SECRETA = process.env.API_KEY_N8N;
 
-    // Verifica se o n8n mandou o cabeçalho 'Authorization: Bearer Stellar-Secret-Key-2026'
-    if (authHeader === `Bearer ${CHAVE_SECRETA}`) {
-      return true; // Passagem liberada!
+    if (!CHAVE_SECRETA) {
+      throw new InternalServerErrorException('Configuração de segurança ausente no servidor (API_KEY_N8N).');
     }
 
-    throw new UnauthorizedException('Acesso negado! Cadê a chave do Ecossistema Stellar?');
+    if (apiKey !== CHAVE_SECRETA) {
+      throw new UnauthorizedException('Chave de API inválida ou ausente.');
+    }
+
+    return true;
   }
 }
