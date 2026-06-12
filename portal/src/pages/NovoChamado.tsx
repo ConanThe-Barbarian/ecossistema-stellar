@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { api } from '../api';
+import { api, mensagemDeErro } from '../api';
 
 const TIPOS: Record<string, { categoria: string; titulo: string }> = {
   TREINAMENTO: { categoria: 'TREINAMENTO', titulo: 'Solicitação de Treinamento' },
@@ -41,7 +41,7 @@ export default function NovoChamado() {
       });
       navigate('/chamados');
     } catch (err: any) {
-      setErro(err.response?.data?.message?.toString() ?? 'Erro ao abrir o chamado.');
+      setErro(mensagemDeErro(err, 'Erro ao abrir o chamado'));
     } finally {
       setEnviando(false);
     }

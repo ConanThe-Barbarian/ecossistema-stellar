@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../api';
+import { api, desembrulhar, mensagemDeErro } from '../api';
 
 interface Chamado {
   id: string;
@@ -29,8 +29,8 @@ export default function Chamados() {
   useEffect(() => {
     api
       .get('/chamados')
-      .then(({ data }) => setChamados(Array.isArray(data) ? data : data.dados ?? []))
-      .catch(() => setErro('Não foi possível carregar seus chamados.'));
+      .then(({ data }) => setChamados(desembrulhar<Chamado[]>(data) ?? []))
+      .catch((err) => setErro(mensagemDeErro(err, 'Não foi possível carregar seus chamados')));
   }, []);
 
   if (erro) return <div className="erro">{erro}</div>;

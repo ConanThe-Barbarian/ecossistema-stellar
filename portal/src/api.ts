@@ -36,3 +36,23 @@ export function usuarioLogado(): Usuario | null {
   const raw = localStorage.getItem('stellar_user');
   return raw ? JSON.parse(raw) : null;
 }
+
+// Alguns endpoints respondem o dado puro, outros embrulham em { message, dados }.
+// Este helper aceita os dois formatos.
+export function desembrulhar<T>(data: any): T {
+  if (data && typeof data === 'object' && 'dados' in data) return data.dados as T;
+  return data as T;
+}
+
+// Extrai a mensagem real de erro do backend (status + detalhe)
+export function mensagemDeErro(err: any, contexto: string): string {
+  if (!err.response) {
+    return `${contexto}: servidor não respondeu. A API está rodando? (npm run start:dev) ` +
+      'Se o banco estava ocioso, aguarde alguns segundos e tente de novo.';
+  }
+  const { status, data } = err.response;
+  const detalhe = Array.isArray(data?.message)
+    ? data.message.join('; ')
+    : data?.message ?? data?.error ?? '';
+  return `${contexto} (HTTP ${status})${detalhe ? `: ${detalhe}` : ''}`;
+}

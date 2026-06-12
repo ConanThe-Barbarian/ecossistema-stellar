@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api } from '../api';
+import { api, desembrulhar, mensagemDeErro } from '../api';
 
 interface Resumo {
   empresa: { id: string; nome: string };
@@ -24,15 +24,16 @@ export default function Inicio() {
 
   useEffect(() => {
     api
-      .get<Resumo>('/portal/resumo')
-      .then(({ data }) => {
+      .get('/portal/resumo')
+      .then(({ data: bruto }) => {
+        const data = desembrulhar<Resumo>(bruto);
         setResumo(data);
         // Guarda para a tela de novo chamado usar
         if (data.empresa_responsavel_id) {
           localStorage.setItem('stellar_empresa_responsavel', data.empresa_responsavel_id);
         }
       })
-      .catch(() => setErro('Não foi possível carregar o resumo.'));
+      .catch((err) => setErro(mensagemDeErro(err, 'Não foi possível carregar o resumo')));
   }, []);
 
   if (erro) return <div className="erro">{erro}</div>;

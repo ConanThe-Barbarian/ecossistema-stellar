@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../api';
+import { api, desembrulhar, mensagemDeErro } from '../api';
 
 interface Ferramenta {
   servico_id: string;
@@ -17,9 +17,9 @@ export default function Ferramentas() {
 
   useEffect(() => {
     api
-      .get<Ferramenta[]>('/portal/ferramentas')
-      .then(({ data }) => setFerramentas(data))
-      .catch(() => setErro('Não foi possível carregar suas ferramentas.'));
+      .get('/portal/ferramentas')
+      .then(({ data }) => setFerramentas(desembrulhar<Ferramenta[]>(data) ?? []))
+      .catch((err) => setErro(mensagemDeErro(err, 'Não foi possível carregar suas ferramentas')));
   }, []);
 
   function acessar(f: Ferramenta) {

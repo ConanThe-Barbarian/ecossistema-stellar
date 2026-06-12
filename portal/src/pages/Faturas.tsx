@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../api';
+import { api, desembrulhar, mensagemDeErro } from '../api';
 
 interface Fatura {
   id: string;
@@ -28,9 +28,9 @@ export default function Faturas() {
 
   useEffect(() => {
     api
-      .get<Fatura[]>('/portal/faturas')
-      .then(({ data }) => setFaturas(data))
-      .catch(() => setErro('Não foi possível carregar suas faturas.'));
+      .get('/portal/faturas')
+      .then(({ data }) => setFaturas(desembrulhar<Fatura[]>(data) ?? []))
+      .catch((err) => setErro(mensagemDeErro(err, 'Não foi possível carregar suas faturas')));
   }, []);
 
   if (erro) return <div className="erro">{erro}</div>;
