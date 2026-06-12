@@ -1,0 +1,174 @@
+/* 🌌 Ecossistema Stellar — tema espacial dark + glassmorphism */
+:root {
+  --bg-deep: #070b1a;
+  --bg-nebula: #0d1230;
+  --glass: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-hover: rgba(255, 255, 255, 0.1);
+  --txt: #e8eaf6;
+  --txt-dim: #9aa3c7;
+  --accent: #7c6cff;
+  --accent-2: #38bdf8;
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --danger: #f87171;
+  --radius: 16px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: var(--txt);
+  background:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(124, 108, 255, 0.25), transparent),
+    radial-gradient(ellipse 60% 40% at 90% 10%, rgba(56, 189, 248, 0.15), transparent),
+    linear-gradient(180deg, var(--bg-nebula), var(--bg-deep) 60%);
+  min-height: 100vh;
+  background-attachment: fixed;
+}
+
+/* Estrelas */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 20px 30px, #fff, transparent),
+    radial-gradient(1px 1px at 90px 110px, rgba(255,255,255,.7), transparent),
+    radial-gradient(1.5px 1.5px at 160px 60px, rgba(255,255,255,.9), transparent),
+    radial-gradient(1px 1px at 240px 150px, rgba(255,255,255,.5), transparent),
+    radial-gradient(1px 1px at 310px 40px, rgba(255,255,255,.8), transparent);
+  background-size: 360px 200px;
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#root { position: relative; z-index: 1; }
+
+/* ─── Glass card ─── */
+.card {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding: 1.5rem;
+}
+
+.card h3 { font-size: 0.85rem; color: var(--txt-dim); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+.card .big { font-size: 1.8rem; font-weight: 700; }
+
+/* ─── Layout ─── */
+.layout { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: 240px;
+  padding: 1.5rem 1rem;
+  background: rgba(7, 11, 26, 0.6);
+  border-right: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.logo {
+  font-size: 1.3rem;
+  font-weight: 800;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin-bottom: 1.5rem;
+  padding: 0 0.75rem;
+}
+
+.nav-link {
+  display: block;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  color: var(--txt-dim);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+.nav-link:hover { background: var(--glass-hover); color: var(--txt); }
+.nav-link.active { background: linear-gradient(90deg, rgba(124,108,255,.25), rgba(56,189,248,.12)); color: var(--txt); }
+
+.sidebar .spacer { flex: 1; }
+.user-box { padding: 0.75rem; font-size: 0.85rem; color: var(--txt-dim); border-top: 1px solid var(--glass-border); }
+.user-box strong { color: var(--txt); display: block; }
+
+.content { flex: 1; padding: 2rem 2.5rem; max-width: 1100px; }
+.content h1 { font-size: 1.6rem; margin-bottom: 1.5rem; }
+
+.grid { display: grid; gap: 1.25rem; }
+.grid-3 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.grid-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+
+/* ─── Botões ─── */
+.btn {
+  display: inline-block;
+  padding: 0.65rem 1.3rem;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.btn:hover { opacity: 0.9; transform: translateY(-1px); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-ghost {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  color: var(--txt);
+}
+
+/* ─── Badges ─── */
+.badge { padding: 0.25rem 0.7rem; border-radius: 99px; font-size: 0.75rem; font-weight: 700; }
+.badge.ok { background: rgba(52, 211, 153, 0.15); color: var(--ok); }
+.badge.warn { background: rgba(251, 191, 36, 0.15); color: var(--warn); }
+.badge.danger { background: rgba(248, 113, 113, 0.15); color: var(--danger); }
+.badge.info { background: rgba(56, 189, 248, 0.15); color: var(--accent-2); }
+
+/* ─── Tabela ─── */
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--txt-dim); padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--glass-border); }
+td { padding: 0.75rem; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.92rem; }
+tr:hover td { background: rgba(255,255,255,0.03); }
+
+/* ─── Formulários ─── */
+label { display: block; font-size: 0.85rem; color: var(--txt-dim); margin: 1rem 0 0.35rem; }
+input, textarea, select {
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--txt);
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); border-color: transparent; }
+select option { background: var(--bg-nebula); }
+
+.erro { color: var(--danger); font-size: 0.85rem; margin-top: 0.75rem; }
+
+/* ─── Login ─── */
+.login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+.login-card { width: 100%; max-width: 400px; padding: 2.5rem; }
+.login-card .logo { font-size: 1.8rem; text-align: center; padding: 0; margin-bottom: 0.25rem; }
+.login-card .sub { text-align: center; color: var(--txt-dim); font-size: 0.9rem; margin-bottom: 1rem; }
+.login-card .btn { width: 100%; margin-top: 1.5rem; }
+
+.muted { color: var(--txt-dim); font-size: 0.88rem; }
+.mt { margin-top: 1.25rem; }

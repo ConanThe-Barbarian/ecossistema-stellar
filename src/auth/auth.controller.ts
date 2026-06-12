@@ -21,7 +21,8 @@ export class AuthController {
     }
 
     // 3. Se estiver tudo certo, gera o token JWT
-    return this.authService.login(body);
+    // 🔑 CORREÇÃO: antes passava o body cru (email/senha) — o token saía sem id, empresa e permissões
+    return this.authService.login(user);
   }
 
   // Adicione esta rota no seu AuthController

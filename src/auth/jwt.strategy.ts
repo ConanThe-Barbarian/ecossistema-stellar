@@ -23,7 +23,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 async validate(payload: any) {
     // O que você retornar aqui será injetado no 'req.user'
     return { 
-      userId: payload.sub, 
+      id: payload.sub,      // usado por RolesGuard e controllers
+      userId: payload.sub, // alias retrocompativel
       email: payload.email, 
       nome: payload.nome,
       empresa_id: payload.empresa_id, // Adicionado
