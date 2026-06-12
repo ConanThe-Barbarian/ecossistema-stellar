@@ -100,6 +100,7 @@ model empresas {
   chamados_chamados_empresa_origem_idToempresas      chamados[]         @relation("chamados_empresa_origem_idToempresas")
   chamados_chamados_empresa_responsavel_idToempresas chamados[]         @relation("chamados_empresa_responsavel_idToempresas")
   consumo_variavel                                   consumo_variavel[]
+  custos_fixos                                       custos_fixos[]
   contratos                                          contratos[]
   faturas                                            faturas[]
   usuarios                                           usuarios[]
@@ -210,4 +211,17 @@ model webhook_logs_asaas {
   status_processamento String   @default("PENDENTE", map: "DF__webhook_l__statu__58D1301D") @db.VarChar(20)
   erro_detalhe         String?  @db.NVarChar(Max)
   created_at           DateTime @default(now(), map: "DF__webhook_l__creat__5AB9788F")
+}
+
+model custos_fixos {
+  id           String    @id(map: "PK_custos_fixos") @default(dbgenerated("newid()"), map: "DF_custos_fixos_id") @db.UniqueIdentifier
+  empresa_id   String?   @db.UniqueIdentifier
+  descricao    String    @db.NVarChar(255)
+  valor_mensal Decimal   @db.Decimal(18, 2)
+  mes_inicio   String?   @db.VarChar(7)
+  mes_fim      String?   @db.VarChar(7)
+  status       String    @default("ATIVO", map: "DF_custos_fixos_status") @db.VarChar(20)
+  created_at   DateTime  @default(now(), map: "DF_custos_fixos_created")
+  updated_at   DateTime  @default(now(), map: "DF_custos_fixos_updated")
+  empresas     empresas? @relation(fields: [empresa_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_CustosFixos_Empresas")
 }

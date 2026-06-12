@@ -10,6 +10,9 @@ import { PlanosController } from './planos/planos.controller';
 import { FinanceiroController } from './financeiro.controller';
 import { ContratosService } from './contratos/contratos.service';
 import { ContratosController } from './contratos/contratos.controller';
+import { DreService } from './dre/dre.service';
+import { CustosFixosService } from './dre/custos-fixos.service';
+import { DreController } from './dre/dre.controller';
 
 @Module({
   imports: [
@@ -20,13 +23,16 @@ import { ContratosController } from './contratos/contratos.controller';
     AsaasService,
     FaturasService,
     PlanosService,
-    ContratosService
+    ContratosService,
+    DreService,
+    CustosFixosService
   ],
   controllers: [
     FaturasController,
     WebhooksController,
     PlanosController,
     ContratosController,
+    DreController,
     FinanceiroController
   ],
 })
