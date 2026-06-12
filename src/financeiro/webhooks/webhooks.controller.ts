@@ -2,6 +2,7 @@ import { Controller, Post, Body, Headers, HttpCode, HttpStatus, UnauthorizedExce
 import { PrismaService } from '../../prisma/prisma.service'; 
 import { NotificationsService } from '../../notifications/notifications.service';
 import { AsaasService } from '../asaas/asaas.service';
+import { AcessoService } from '../acesso/acesso.service';
 import { Public } from '../../auth/decorators/public.decorator';
 import * as crypto from 'crypto';
 
@@ -12,7 +13,8 @@ export class WebhooksController {
   constructor(
     private readonly prisma: PrismaService, 
     private readonly notifications: NotificationsService, 
-    private readonly asaasService: AsaasService
+    private readonly asaasService: AsaasService,
+    private readonly acessoService: AcessoService
   ) {}
 
   @Public()
@@ -69,6 +71,12 @@ export class WebhooksController {
         const { razao_social, telefone_principal } = fatura.empresas;
         const tel = telefone_principal ?? '';
 
+        // 🔓 AUTOMACAO: pagamento confirmado -> libera as ferramentas do cliente
+        const liberadas = await this.acessoService.liberarAcessoEmpresa(fatura.empresa_id);
+        if (liberadas > 0) {
+          this.logger.log(`${liberadas} ferramenta(s) liberada(s) automaticamente para ${razao_social}.`);
+        }
+
         let linkRecibo: string | null = null;
         let tentativas = 0;
 
@@ -105,8 +113,14 @@ export class WebhooksController {
             razao_social,
             faturaPendente.url_fatura ?? 'https://www.asaas.com'
           );
-          
-          this.logger.log(`Alerta de atraso enviado para o cliente. Fatura pendente.`);
+
+          // 🔒 AUTOMACAO: fatura vencida -> bloqueia as ferramentas do cliente
+          await this.acessoService.bloquearAcessoEmpresa(
+            faturaPendente.empresa_id,
+            `Fatura ${paymentId} vencida (PAYMENT_OVERDUE)`
+          );
+
+          this.logger.log(`Alerta de atraso enviado e acesso bloqueado. Fatura pendente.`);
         }
       } catch (error) {
         this.logger.error('Erro ao processar evento de atraso:', error);

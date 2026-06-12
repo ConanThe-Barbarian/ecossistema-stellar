@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api, desembrulhar, mensagemDeErro } from '../api';
 
 interface Chamado {
@@ -23,6 +23,7 @@ function badgeStatus(status: string) {
 }
 
 export default function Chamados() {
+  const navigate = useNavigate();
   const [chamados, setChamados] = useState<Chamado[] | null>(null);
   const [erro, setErro] = useState('');
 
@@ -60,7 +61,11 @@ export default function Chamados() {
             </thead>
             <tbody>
               {chamados.map((c) => (
-                <tr key={c.id}>
+                <tr
+                  key={c.id}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => navigate(`/chamados/${c.id}`)}
+                >
                   <td>{c.titulo}</td>
                   <td>{c.categoria}</td>
                   <td>{c.prioridade}</td>

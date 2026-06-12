@@ -13,6 +13,7 @@ import { ContratosController } from './contratos/contratos.controller';
 import { DreService } from './dre/dre.service';
 import { CustosFixosService } from './dre/custos-fixos.service';
 import { DreController } from './dre/dre.controller';
+import { AcessoService } from './acesso/acesso.service';
 
 @Module({
   imports: [
@@ -25,7 +26,8 @@ import { DreController } from './dre/dre.controller';
     PlanosService,
     ContratosService,
     DreService,
-    CustosFixosService
+    CustosFixosService,
+    AcessoService
   ],
   controllers: [
     FaturasController,

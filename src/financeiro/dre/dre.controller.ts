@@ -74,6 +74,12 @@ export class DreController {
 
   // ─── Consumo Variável (tokens GalaxIA / APIs) ───
 
+  @Get('consumo/alertas')
+  @RequirePermission('gestao:contratos')
+  async alertasConsumo(@Query('mes') mes: string) {
+    return this.dreService.alertasConsumo(mes ?? new Date().toISOString().slice(0, 7));
+  }
+
   @Post('consumo')
   @RequirePermission('gestao:contratos')
   async registrarConsumo(@Body() dto: RegistrarConsumoDto) {

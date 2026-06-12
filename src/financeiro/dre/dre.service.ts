@@ -174,7 +174,85 @@ export class DreService {
     return { mes_referencia: mes, ...cliente };
   }
 
+
+  /**
+   * Alerta de Custos Variáveis (régua de renegociação):
+   * compara o consumo do mês com a média histórica de cada cliente.
+   * Desvio >= 30% = ATENCAO; >= 60% = CRITICO.
+   */
+  async alertasConsumo(mes: string) {
+    this.validarMes(mes);
+
+    const [consumosDoMes, historico] = await Promise.all([
+      this.prisma.consumo_variavel.groupBy({
+        by: ['empresa_id'],
+        where: { mes_referencia: mes },
+        _sum: { custo_gerado_reais: true, qtd_tokens: true },
+      }),
+      this.prisma.consumo_variavel.findMany({
+        where: { mes_referencia: { lt: mes } },
+        select: { empresa_id: true, mes_referencia: true, custo_gerado_reais: true },
+      }),
+    ]);
+
+    // Média histórica por empresa (soma por mês, depois média entre meses)
+    const porEmpresaMes = new Map<string, Map<string, number>>();
+    for (const h of historico) {
+      if (!porEmpresaMes.has(h.empresa_id)) porEmpresaMes.set(h.empresa_id, new Map());
+      const meses = porEmpresaMes.get(h.empresa_id)!;
+      meses.set(h.mes_referencia, (meses.get(h.mes_referencia) ?? 0) + Number(h.custo_gerado_reais));
+    }
+
+    const empresaIds = consumosDoMes.map((c) => c.empresa_id);
+    const empresas = await this.prisma.empresas.findMany({
+      where: { id: { in: empresaIds } },
+      select: { id: true, razao_social: true, nome_fantasia: true },
+    });
+    const nomeDe = new Map(empresas.map((e) => [e.id, e.nome_fantasia || e.razao_social]));
+
+    const alertas = consumosDoMes.map((c) => {
+      const consumoAtual = Number(c._sum.custo_gerado_reais ?? 0);
+      const meses = porEmpresaMes.get(c.empresa_id);
+      const valoresHistoricos = meses ? [...meses.values()] : [];
+      const media =
+        valoresHistoricos.length > 0
+          ? valoresHistoricos.reduce((a, b) => a + b, 0) / valoresHistoricos.length
+          : null;
+
+      let desvioPercentual: number | null = null;
+      let situacao = 'SEM_HISTORICO';
+      if (media !== null && media > 0) {
+        desvioPercentual = this.arredondar(((consumoAtual - media) / media) * 100);
+        situacao =
+          desvioPercentual >= 60 ? 'CRITICO' : desvioPercentual >= 30 ? 'ATENCAO' : 'NORMAL';
+      }
+
+      return {
+        empresa_id: c.empresa_id,
+        empresa: nomeDe.get(c.empresa_id) ?? c.empresa_id,
+        consumo_mes_reais: this.arredondar(consumoAtual),
+        qtd_tokens_mes: Number(c._sum.qtd_tokens ?? 0),
+        media_historica_reais: media !== null ? this.arredondar(media) : null,
+        meses_de_historico: valoresHistoricos.length,
+        desvio_percentual: desvioPercentual,
+        situacao,
+      };
+    });
+
+    // CRITICO primeiro, depois ATENCAO
+    const peso: Record<string, number> = { CRITICO: 0, ATENCAO: 1, NORMAL: 2, SEM_HISTORICO: 3 };
+    alertas.sort((a, b) => peso[a.situacao] - peso[b.situacao]);
+
+    return {
+      mes_referencia: mes,
+      regua: { atencao_percentual: 30, critico_percentual: 60 },
+      total_em_alerta: alertas.filter((a) => a.situacao === 'ATENCAO' || a.situacao === 'CRITICO').length,
+      alertas,
+    };
+  }
+
   private arredondar(valor: number): number {
+
     return Math.round(valor * 100) / 100;
   }
 }
