@@ -14,7 +14,7 @@ export class AuthService {
   async validateUser(email: string, pass: string): Promise<any> {
     const user = await this.prisma.usuarios.findUnique({
       where: { email },
-      include: { 
+      include: {
         perfis_acesso: true, // Puxa os dados da tabela perfis_acesso
         empresas: true       // Aproveitamos para trazer a empresa, será útil nos chamados!
       }
@@ -27,30 +27,50 @@ export class AuthService {
     return null;
   }
 
+  // Monta o objeto de permissões a partir do perfil de acesso (tabela perfis_acesso).
+  // É este objeto que o PermissionsGuard valida em cada rota protegida.
+  private buildPermissoes(perfil: any): Record<string, boolean> {
+    const canManageUsers = perfil?.can_manage_users ?? false;
+    const canGenerateInvoices = perfil?.can_generate_invoices ?? false;
+
+    return {
+      can_open_internal_ticket: perfil?.can_open_internal_ticket ?? false,
+      can_open_stellar_ticket: perfil?.can_open_stellar_ticket ?? false,
+      can_manage_users: canManageUsers,
+      can_generate_invoices: canGenerateInvoices,
+      // Permissões derivadas (usadas pelos controllers de gestão)
+      'financeiro:planos': canGenerateInvoices,
+      'gestao:empresas': canManageUsers,
+      'gestao:contratos': canGenerateInvoices || canManageUsers,
+    };
+  }
+
   // 2. Gera o Token com as permissões embutidas
   async login(user: any) {
-  // 🛡️ Blindagem Vortex: Verificamos se o objeto existe antes de ler as propriedades
-  const payload = { 
-    sub: user.id, 
-    email: user.email,
-    nome: user.nome,
-    // Usamos ?. para não quebrar o código se o perfil ou empresa vierem nulos
-    perfil: user.perfis_acesso?.nome || 'PERFIL_NAO_DEFINIDO',
-    empresa_id: user.empresa_id,
-    empresa_nome: user.empresas?.razao_social || 'EMPRESA_NAO_DEFINIDA'
-  };
-
-  return {
-    access_token: this.jwtService.sign(payload),
-    user: {
-      id: user.id,
-      nome: user.nome,
+    // 🛡️ Blindagem Vortex: Verificamos se o objeto existe antes de ler as propriedades
+    const payload = {
+      sub: user.id,
       email: user.email,
-      perfil: user.perfis_acesso?.nome,
-      empresa: user.empresas?.razao_social
-    }
-  };
-}
+      nome: user.nome,
+      // Usamos ?. para não quebrar o código se o perfil ou empresa vierem nulos
+      perfil: user.perfis_acesso?.nome || 'PERFIL_NAO_DEFINIDO',
+      empresa_id: user.empresa_id,
+      empresa_nome: user.empresas?.razao_social || 'EMPRESA_NAO_DEFINIDA',
+      // 🔑 CORREÇÃO: sem isso o PermissionsGuard negava TODAS as rotas protegidas (403)
+      permissoes: this.buildPermissoes(user.perfis_acesso)
+    };
+
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: {
+        id: user.id,
+        nome: user.nome,
+        email: user.email,
+        perfil: user.perfis_acesso?.nome,
+        empresa: user.empresas?.razao_social
+      }
+    };
+  }
 
   // Mantemos o registro igualzinho
   async register(data: any) {
