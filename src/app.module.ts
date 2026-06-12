@@ -14,6 +14,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { EmpresasModule } from './empresas/empresas.module';
 import { ServicosModule } from './servicos/servicos.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ServicosModule } from './servicos/servicos.module';
     FinanceiroModule,
     EmpresasModule,
     ServicosModule,
+    DashboardModule,
     // Configuração: Limita a 100 requisições por minuto por IP
     ThrottlerModule.forRoot([{
       ttl: 60000, // Tempo em milissegundos (60 segundos)
