@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { comRetentativas } from '../../common/retry.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AsaasService } from '../asaas/asaas.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -86,13 +87,17 @@ export class FaturasService {
       return data.toISOString().split('T')[0];
     });
 
-    const faturasParaNotificar = await this.prisma.faturas.findMany({
-      where: {
-        status: 'PENDENTE',
-        data_vencimento: { in: datasAlvo.map(d => new Date(d)) }
-      },
-      include: { empresas: true }
-    });
+    // Retry: o Azure SQL serverless pode estar pausado quando o cron dispara
+    const faturasParaNotificar = await comRetentativas(
+      () => this.prisma.faturas.findMany({
+        where: {
+          status: 'PENDENTE',
+          data_vencimento: { in: datasAlvo.map(d => new Date(d)) }
+        },
+        include: { empresas: true }
+      }),
+      'lembretes de vencimento',
+    );
 
     for (const fatura of faturasParaNotificar) {
       const telefone = fatura.empresas.telefone_principal ?? '';

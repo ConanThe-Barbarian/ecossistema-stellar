@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { comRetentativas } from '../common/retry.util';
 import { Cron } from '@nestjs/schedule';
 import { WebhooksService } from '../webhooks/webhooks.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -99,7 +100,8 @@ async gerarRelatorioMensalAutomatico() {
     const ano = mesAnterior.getFullYear();
 
     console.log(`[Stellar Relatorios] Gerando relatorio mensal automatico ${mes}/${ano}...`);
-    const dados = await this.gerarRelatorioCompleto(mes, ano);
+    // Retry: o Azure SQL serverless pode estar pausado quando o cron dispara
+    const dados = await comRetentativas(() => this.gerarRelatorioCompleto(mes, ano), 'relatorio mensal');
     const pdf = await this.exportarPdfSla(dados);
 
     await this.webhooks.dispararEvento('RELATORIO_MENSAL_GESTAO', {
