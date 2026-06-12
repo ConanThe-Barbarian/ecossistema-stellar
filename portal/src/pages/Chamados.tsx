@@ -29,7 +29,7 @@ export default function Chamados() {
   useEffect(() => {
     api
       .get('/chamados')
-      .then(({ data }) => setChamados(Array.isArray(data) ? data : data.chamados ?? []))
+      .then(({ data }) => setChamados(Array.isArray(data) ? data : data.dados ?? []))
       .catch(() => setErro('Não foi possível carregar seus chamados.'));
   }, []);
 
