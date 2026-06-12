@@ -33,12 +33,12 @@
 ## 2. Planejado e ainda NÃO implementado
 
 ### Alta prioridade
-- [ ] **Suspensão/liberação automática do GalaxIA por pagamento.** Quando o
+- [x] *(12/06/2026)* **Suspensão/liberação automática do GalaxIA por pagamento.** Quando o
   webhook do Asaas confirmar pagamento (ou detectar inadimplência), bloquear ou
   liberar `ferramentas_contratadas.status_acesso` automaticamente — e via
   Platform Token do Chatwoot, suspender o acesso na própria plataforma. Hoje o
   webhook só baixa a fatura e envia WhatsApp.
-- [ ] **Alerta de custos variáveis.** Card/endpoint que compara o consumo do mês
+- [x] *(12/06/2026)* **Alerta de custos variáveis.** Card/endpoint que compara o consumo do mês
   com a média histórica do cliente e sinaliza desvio (régua para renegociação ou
   cobrança de excedente). O registro de consumo já existe; falta a análise.
 - [ ] **Torre de Controle visual** (frontend admin): dashboard executivo com
@@ -49,7 +49,7 @@
   `GET /relatorios/exportar/cliente/:empresaId` (endpoint já existe).
 - [ ] **Relatório mensal automático para os gestores** (cron mensal gerando o
   PDF de gestão e disparando via n8n/WhatsApp — o fluxo n8n já foi prototipado).
-- [ ] **Detalhe do chamado no portal** (chat de interações + anexos — endpoints
+- [x] *(12/06/2026)* **Detalhe do chamado no portal** (chat de interações + anexos — endpoints
   prontos no backend).
 - [ ] **E-mail transacional real** (confirmação de pagamento etc. — hoje é só
   log; integrar SendGrid/Mailtrap ou similar).
