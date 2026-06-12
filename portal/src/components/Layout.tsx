@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { usuarioLogado } from '../api';
+import { usuarioLogado, ehFundador } from '../api';
 
 export default function Layout() {
   const navigate = useNavigate();
@@ -27,6 +27,25 @@ export default function Layout() {
         <NavLink to="/chamados" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
           🎫 Chamados
         </NavLink>
+        {ehFundador() && (
+          <>
+            <div className="muted" style={{ fontSize: '0.7rem', letterSpacing: '0.1em', padding: '1rem 0.9rem 0.3rem', textTransform: 'uppercase' }}>
+              Torre de Controle
+            </div>
+            <NavLink to="/admin" end className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+              📊 Dashboard
+            </NavLink>
+            <NavLink to="/admin/dre" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+              💰 DRE & Rateio
+            </NavLink>
+            <NavLink to="/admin/consumo" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+              ⚡ Consumo
+            </NavLink>
+            <NavLink to="/admin/clientes" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+              🏢 Clientes
+            </NavLink>
+          </>
+        )}
         <div className="spacer" />
         <div className="user-box">
           <strong>{user?.nome ?? 'Usuário'}</strong>

@@ -25,6 +25,35 @@ function badgeDe(f: Fatura) {
 export default function Faturas() {
   const [faturas, setFaturas] = useState<Fatura[] | null>(null);
   const [erro, setErro] = useState('');
+  const [gerando, setGerando] = useState(false);
+
+  async function gerarRelatorio() {
+    const empresaId = localStorage.getItem('stellar_empresa_id');
+    if (!empresaId) {
+      setErro('Visite a página Início uma vez antes de gerar o relatório.');
+      return;
+    }
+    setGerando(true);
+    setErro('');
+    try {
+      const agora = new Date();
+      const { data } = await api.get(
+        `/relatorios/exportar/cliente/${empresaId}?mes=${agora.getMonth() + 1}&ano=${agora.getFullYear()}`,
+      );
+      const nome = desembrulhar<any>(data)?.nome_arquivo ?? data?.nome_arquivo;
+      const resp = await api.get(`/relatorios/meu-download/${nome}`, { responseType: 'blob' });
+      const url = URL.createObjectURL(resp.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `relatorio-stellar-${agora.getMonth() + 1}-${agora.getFullYear()}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setErro(mensagemDeErro(err, 'Erro ao gerar o relatório'));
+    } finally {
+      setGerando(false);
+    }
+  }
 
   useEffect(() => {
     api
@@ -38,7 +67,12 @@ export default function Faturas() {
 
   return (
     <>
-      <h1>Financeiro</h1>
+      <h1>
+        Financeiro{' '}
+        <button className="btn" style={{ float: 'right', fontSize: '0.85rem' }} onClick={gerarRelatorio} disabled={gerando}>
+          {gerando ? 'Gerando PDF…' : '📄 Relatório Mensal'}
+        </button>
+      </h1>
       <div className="card">
         {faturas.length === 0 ? (
           <p className="muted">Nenhuma fatura emitida ainda.</p>

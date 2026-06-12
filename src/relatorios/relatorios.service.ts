@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
+import { WebhooksService } from '../webhooks/webhooks.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
@@ -9,7 +11,7 @@ import * as puppeteer from 'puppeteer';
 
 @Injectable()
 export class RelatoriosService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService, private readonly webhooks: WebhooksService) {}
 
 async gerarRelatorioCompleto(mes: number, ano: number, empresaId?: string) {
   const dataInicio = new Date(ano, mes - 1, 1);
@@ -81,6 +83,35 @@ const todosTecnicos = await this.prisma.usuarios.findMany({
     resumoTecnicos: Object.entries(resumoTecnicosMap).map(([nome, total]) => ({ nome, total })),
     detalhesChamados
   };
+}
+
+/**
+ * Relatório mensal automático para os gestores:
+ * todo dia 1 às 08:00 gera o PDF de gestão do mês anterior e dispara
+ * o webhook do n8n (que envia no WhatsApp dos fundadores).
+ */
+@Cron('0 8 1 * *')
+async gerarRelatorioMensalAutomatico() {
+  try {
+    const agora = new Date();
+    const mesAnterior = new Date(agora.getFullYear(), agora.getMonth() - 1, 1);
+    const mes = mesAnterior.getMonth() + 1;
+    const ano = mesAnterior.getFullYear();
+
+    console.log(`[Stellar Relatorios] Gerando relatorio mensal automatico ${mes}/${ano}...`);
+    const dados = await this.gerarRelatorioCompleto(mes, ano);
+    const pdf = await this.exportarPdfSla(dados);
+
+    await this.webhooks.dispararEvento('RELATORIO_MENSAL_GESTAO', {
+      periodo: `${mes}/${ano}`,
+      nome_arquivo: pdf.nome_arquivo,
+      url_download: `/relatorios/download/${pdf.nome_arquivo}`,
+    });
+
+    console.log(`[Stellar Relatorios] Relatorio mensal ${mes}/${ano} gerado e webhook disparado.`);
+  } catch (error) {
+    console.error('[Stellar Relatorios] Falha no relatorio mensal automatico:', error);
+  }
 }
 
 async exportarPdfSla(dados: any) {

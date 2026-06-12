@@ -28,6 +28,7 @@ export default function Inicio() {
       .then(({ data: bruto }) => {
         const data = desembrulhar<Resumo>(bruto);
         setResumo(data);
+        localStorage.setItem('stellar_empresa_id', data.empresa.id);
         // Guarda para a tela de novo chamado usar
         if (data.empresa_responsavel_id) {
           localStorage.setItem('stellar_empresa_responsavel', data.empresa_responsavel_id);

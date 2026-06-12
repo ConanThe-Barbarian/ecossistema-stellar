@@ -56,3 +56,10 @@ export function mensagemDeErro(err: any, contexto: string): string {
     : data?.message ?? data?.error ?? '';
   return `${contexto} (HTTP ${status})${detalhe ? `: ${detalhe}` : ''}`;
 }
+
+// Fundadores da Stellar (Torre de Controle)
+export function ehFundador(): boolean {
+  const u = usuarioLogado();
+  if (!u) return false;
+  return u.perfil === 'Super Admin' || (u.empresa ?? '').toUpperCase().includes('STELLAR');
+}

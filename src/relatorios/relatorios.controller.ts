@@ -64,6 +64,26 @@ export class RelatoriosController {
     return this.relatoriosService.exportarPdfSla(dados);
   }
 
+  // ROTA 3.5: Download autenticado via JWT (usado pelo Portal do Cliente)
+  @Get('meu-download/:nomeArquivo')
+  async baixarMeuRelatorio(
+    @Param('nomeArquivo') nomeArquivo: string,
+    @Res() res: Response,
+  ) {
+    const nomeSanitizado = basename(nomeArquivo);
+    const filePath = join(process.cwd(), 'uploads', 'relatorios', nomeSanitizado);
+
+    if (!filePath.startsWith(join(process.cwd(), 'uploads', 'relatorios')) || !existsSync(filePath)) {
+      throw new NotFoundException('Relatório não encontrado no Ecossistema Stellar.');
+    }
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${nomeSanitizado}"`,
+    });
+    createReadStream(filePath).pipe(res);
+  }
+
   // ROTA 4: Download (Permanece protegida apenas pelo Path Traversal e ApiKey)
   @Public()
   @Get('download/:nomeArquivo')
@@ -94,7 +114,10 @@ export class RelatoriosController {
 
   // Função auxiliar de checagem
   private isAdmin(usuario: any): boolean {
-    // Verifica a permissão base (ajuste conforme a nomenclatura do seu JWT/banco)
-    return usuario?.permissoes?.includes('can_manage_users') === true;
+    // permissoes é um OBJETO no token ({ can_manage_users: true, ... }).
+    // O .includes anterior quebrava com TypeError (era para array).
+    const p = usuario?.permissoes;
+    if (!p) return false;
+    return Array.isArray(p) ? p.includes('can_manage_users') : p['can_manage_users'] === true;
   }
 }
