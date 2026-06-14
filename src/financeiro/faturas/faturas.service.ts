@@ -4,6 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AsaasService } from '../asaas/asaas.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { NotificationsService } from '../../notifications/notifications.service';
+import { EmailService } from '../../notifications/email.service';
 
 @Injectable()
 export class FaturasService {
@@ -12,6 +13,7 @@ export class FaturasService {
   constructor(
     private prisma: PrismaService,
     private notifications: NotificationsService,
+    private email: EmailService,
     private asaas: AsaasService,
   ) {}
 
@@ -71,6 +73,17 @@ export class FaturasService {
         faturaAtualizada.url_fatura ?? ''
       );
       this.logger.log(`Fatura gerada e cliente notificado com sucesso. (Contrato ID: ${contrato.id})`);
+    }
+
+    // 📧 E-mail de fatura gerada (só envia se houver e-mail + SMTP configurado)
+    if (contrato.empresas.email_financeiro) {
+      await this.email.enviarFaturaGerada(
+        contrato.empresas.email_financeiro,
+        contrato.empresas.razao_social,
+        contrato.valor_mensalidade.toString(),
+        faturaAtualizada.data_vencimento.toLocaleDateString('pt-BR'),
+        faturaAtualizada.url_fatura ?? '',
+      );
     }
 
     return { message: 'Fatura gerada e blindada com o Asaas!', fatura: faturaAtualizada };

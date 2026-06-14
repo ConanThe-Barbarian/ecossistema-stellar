@@ -27,6 +27,9 @@ export default function Layout() {
         <NavLink to="/chamados" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
           🎫 Chamados
         </NavLink>
+        <NavLink to="/conta" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+          🔒 Conta
+        </NavLink>
         {ehFundador() && (
           <>
             <div className="muted" style={{ fontSize: '0.7rem', letterSpacing: '0.1em', padding: '1rem 0.9rem 0.3rem', textTransform: 'uppercase' }}>
@@ -43,6 +46,9 @@ export default function Layout() {
             </NavLink>
             <NavLink to="/admin/clientes" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
               🏢 Clientes
+            </NavLink>
+            <NavLink to="/admin/kanban" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+              🗂️ Kanban
             </NavLink>
           </>
         )}

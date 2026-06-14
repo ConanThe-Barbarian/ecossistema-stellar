@@ -4,6 +4,7 @@ import { join, basename } from 'path';
 import { existsSync, unlinkSync } from 'fs';
 import { fileTypeFromFile } from 'file-type'; // 🛡️ Importação para checar o DNA do arquivo
 import { ChamadosService } from './chamados.service';
+import { IaService } from '../ia/ia.service';
 import { AuthGuard } from '@nestjs/passport';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { RequirePermission } from '../auth/decorators/permissions.decorator';
@@ -17,7 +18,10 @@ import { FileInterceptor } from '@nestjs/platform-express';
 @Controller('chamados')
 @UseGuards(PermissionsGuard)
 export class ChamadosController {
-  constructor(private readonly chamadosService: ChamadosService) {}
+  constructor(
+    private readonly chamadosService: ChamadosService,
+    private readonly iaService: IaService,
+  ) {}
 
   @RequirePermission('can_open_internal_ticket')
   @Post()
@@ -35,6 +39,13 @@ export class ChamadosController {
   async listarChamados(@CurrentUser() usuarioLogado: any) {
     const chamados = await this.chamadosService.listarChamados(usuarioLogado);
     return { message: 'Listagem de chamados recuperada.', total_encontrado: chamados.length, dados: chamados };
+  }
+
+  // Kanban dos técnicos (declarado ANTES de :id para não ser capturado pelo param)
+  @RequirePermission('can_manage_users')
+  @Get('kanban')
+  async obterKanban(@CurrentUser() usuarioLogado: any) {
+    return this.chamadosService.obterKanban(usuarioLogado);
   }
 
   @UseGuards(AuthGuard('jwt'))
@@ -67,6 +78,37 @@ export class ChamadosController {
   ) {
     const mensagem = await this.chamadosService.enviarMensagem(chamadoId, body, usuarioLogado);
     return { message: 'Mensagem registrada!', dados: mensagem };
+  }
+
+  // Apontamento de horas do técnico (Kanban) — incrementa tempo_gasto_minutos
+  @RequirePermission('can_manage_users')
+  @Post(':id/apontar-horas')
+  async apontarHoras(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { minutos: number },
+    @CurrentUser() usuarioLogado: any,
+  ) {
+    const dados = await this.chamadosService.apontarHoras(id, body?.minutos, usuarioLogado);
+    return { message: 'Horas apontadas.', dados };
+  }
+
+  // ── IA (Vertex): resumo, sentimento e sugestão de resposta ──
+  @RequirePermission('can_manage_users')
+  @Get(':id/ia/resumo')
+  async iaResumo(@Param('id', ParseUUIDPipe) id: string) {
+    return this.iaService.resumirChamado(id);
+  }
+
+  @RequirePermission('can_manage_users')
+  @Get(':id/ia/sentimento')
+  async iaSentimento(@Param('id', ParseUUIDPipe) id: string) {
+    return this.iaService.analisarSentimento(id);
+  }
+
+  @RequirePermission('can_manage_users')
+  @Get(':id/ia/sugestao')
+  async iaSugestao(@Param('id', ParseUUIDPipe) id: string) {
+    return this.iaService.sugerirResposta(id);
   }
 
   @UseGuards(AuthGuard('jwt'))

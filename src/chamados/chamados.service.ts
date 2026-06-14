@@ -773,4 +773,177 @@ const chamadoAtualizado = await this.prisma.chamados.update({
       tecnico: tecnicoEscolhido.nome
     };
   }
+
+  // ── Omnichannel: mensagem recebida do WhatsApp (via n8n/EvolutionAPI) ──
+  // Identifica o usuário pelo telefone; se já houver chamado aberto vira nova
+  // interação, senão abre um novo chamado (respeitando a regra de can_open_stellar_ticket).
+  async processarMensagemWhatsApp(payload: any) {
+    const telefoneBruto =
+      payload?.telefone ?? payload?.phone ?? payload?.number ?? payload?.from ?? '';
+    const texto = (payload?.mensagem ?? payload?.message ?? payload?.text ?? '')
+      .toString()
+      .trim();
+
+    const digitos = String(telefoneBruto).replace(/\D/g, '');
+    if (!digitos || !texto) {
+      return { status: 'IGNORADO', reply: 'Mensagem sem telefone ou texto.' };
+    }
+    const sufixo11 = digitos.slice(-11);
+    const sufixo10 = digitos.slice(-10);
+
+    // Casa pelos últimos dígitos (ignora DDI/formatação salva no cadastro)
+    const candidatos = await this.prisma.usuarios.findMany({
+      where: { status: 'ATIVO', telefone_whatsapp: { not: null }, deleted_at: null },
+      include: { perfis_acesso: true },
+    });
+    const usuario = candidatos.find((u) => {
+      const d = (u.telefone_whatsapp || '').replace(/\D/g, '');
+      return d.slice(-11) === sufixo11 || d.slice(-10) === sufixo10;
+    });
+
+    if (!usuario) {
+      return {
+        status: 'NAO_CADASTRADO',
+        reply:
+          'Não encontramos o seu número no cadastro. Peça ao administrador da sua empresa para cadastrar o seu WhatsApp e abrir chamados por aqui.',
+      };
+    }
+
+    // Já existe chamado em aberto deste requerente? Vira nova interação.
+    const chamadoAberto = await this.prisma.chamados.findFirst({
+      where: { requerente_id: usuario.id, status: { notIn: ['RESOLVIDO', 'FECHADO'] } },
+      orderBy: { created_at: 'desc' },
+    });
+
+    if (chamadoAberto) {
+      await this.prisma.interacoes.create({
+        data: {
+          chamado_id: chamadoAberto.id,
+          usuario_id: usuario.id,
+          mensagem: texto,
+          is_nota_interna: false,
+        },
+      });
+      return {
+        status: 'INTERACAO_ADICIONADA',
+        chamado_id: chamadoAberto.id,
+        reply: `Recebemos a sua mensagem e a adicionamos ao chamado "${chamadoAberto.titulo}". A equipe já foi notificada.`,
+      };
+    }
+
+    // Abertura de chamado novo exige a permissão de chamado externo (regra de negócio)
+    if (!usuario.perfis_acesso?.can_open_stellar_ticket) {
+      return {
+        status: 'SEM_PERMISSAO',
+        reply:
+          'Para abrir um novo chamado para a Stellar, fale com o administrador da sua empresa (somente ele pode abrir chamados externos).',
+      };
+    }
+
+    const stellar = await this.prisma.empresas.findFirst({
+      where: { razao_social: { contains: 'STELLAR' } },
+      select: { id: true },
+    });
+    if (!stellar) {
+      return {
+        status: 'ERRO_CONFIG',
+        reply: 'Empresa de suporte não configurada no sistema. Contate o suporte.',
+      };
+    }
+
+    const { dataLimiteResposta, dataLimiteSolucao } = await this.calcularPrazosSla(
+      usuario.empresa_id,
+      'MEDIA',
+    );
+
+    const titulo = texto.length > 60 ? `${texto.slice(0, 57)}...` : texto;
+    const chamado = await this.prisma.chamados.create({
+      data: {
+        titulo: titulo || 'Atendimento via WhatsApp',
+        descricao: texto,
+        prioridade: 'MEDIA',
+        categoria: 'WHATSAPP',
+        status: 'NOVO',
+        requerente_id: usuario.id,
+        empresa_origem_id: usuario.empresa_id,
+        empresa_responsavel_id: stellar.id,
+        data_limite_resposta: dataLimiteResposta,
+        data_limite_solucao: dataLimiteSolucao,
+      },
+    });
+
+    // Atribuição automática por carga (já dispara webhook ao técnico via n8n)
+    await this.atribuirChamadoAutomaticamente(chamado.id);
+
+    return {
+      status: 'CHAMADO_CRIADO',
+      chamado_id: chamado.id,
+      reply:
+        'Chamado aberto com sucesso! Um técnico já foi acionado e em breve entraremos em contato.',
+    };
+  }
+
+  // ── Kanban dos técnicos: chamados agrupados por status (colunas) ──
+  async obterKanban(usuarioLogado: any) {
+    const temVisaoGlobal =
+      usuarioLogado.perfil === 'Super Admin' || usuarioLogado.permissoes?.can_manage_users;
+    const filtro = temVisaoGlobal ? {} : { empresa_origem_id: usuarioLogado.empresa_id };
+
+    const chamados = await this.prisma.chamados.findMany({
+      where: filtro,
+      orderBy: [{ data_limite_solucao: 'asc' }, { created_at: 'desc' }],
+      include: {
+        usuarios_chamados_requerente_idTousuarios: { select: { nome: true } },
+        usuarios_chamados_tecnico_atribuido_idTousuarios: { select: { nome: true } },
+        empresas_chamados_empresa_origem_idToempresas: { select: { razao_social: true } },
+      },
+    });
+
+    const colunas = ['NOVO', 'EM_ATENDIMENTO', 'PENDENTE_CLIENTE', 'RESOLVIDO', 'FECHADO'];
+    const agora = Date.now();
+    const board = colunas.map((status) => ({ status, chamados: [] as any[] }));
+    const idx = new Map(board.map((c, i) => [c.status, i] as const));
+
+    for (const ch of chamados) {
+      let slaViolado = false;
+      if (ch.status !== 'RESOLVIDO' && ch.status !== 'FECHADO' && ch.data_limite_solucao) {
+        slaViolado = new Date(ch.data_limite_solucao).getTime() < agora;
+      }
+      const card = {
+        id: ch.id,
+        titulo: ch.titulo,
+        prioridade: ch.prioridade,
+        categoria: ch.categoria,
+        status: ch.status,
+        cliente: ch.empresas_chamados_empresa_origem_idToempresas?.razao_social ?? null,
+        requerente: ch.usuarios_chamados_requerente_idTousuarios?.nome ?? null,
+        tecnico: ch.usuarios_chamados_tecnico_atribuido_idTousuarios?.nome ?? null,
+        tempo_gasto_minutos: ch.tempo_gasto_minutos,
+        sla_violado: slaViolado,
+        data_limite_solucao: ch.data_limite_solucao,
+      };
+      const i = idx.get(ch.status);
+      board[i === undefined ? 0 : i].chamados.push(card);
+    }
+
+    return { colunas: board };
+  }
+
+  // Apontamento de horas: incrementa o tempo gasto (em minutos) no chamado.
+  async apontarHoras(id: string, minutos: number, usuarioLogado: any) {
+    await this.buscarPorId(id, usuarioLogado); // valida acesso (404 se não puder)
+    const inc = Math.max(0, Math.floor(Number(minutos) || 0));
+    if (inc === 0) {
+      const atual = await this.prisma.chamados.findUnique({
+        where: { id },
+        select: { tempo_gasto_minutos: true },
+      });
+      return { id, tempo_gasto_minutos: atual?.tempo_gasto_minutos ?? 0 };
+    }
+    return this.prisma.chamados.update({
+      where: { id },
+      data: { tempo_gasto_minutos: { increment: inc } },
+      select: { id: true, tempo_gasto_minutos: true },
+    });
+  }
 }

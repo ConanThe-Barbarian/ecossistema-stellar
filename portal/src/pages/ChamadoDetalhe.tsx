@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api, desembrulhar, mensagemDeErro, usuarioLogado } from '../api';
+import { api, desembrulhar, mensagemDeErro, usuarioLogado, ehFundador } from '../api';
 
 interface Interacao {
   id: string;
@@ -41,7 +41,25 @@ export default function ChamadoDetalhe() {
   const [erro, setErro] = useState('');
   const [mensagem, setMensagem] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const [iaCarregando, setIaCarregando] = useState('');
+  const [iaResultado, setIaResultado] = useState<{ tipo: string; texto: string } | null>(null);
   const eu = usuarioLogado();
+
+  async function rodarIa(tipo: 'resumo' | 'sentimento' | 'sugestao') {
+    setIaCarregando(tipo);
+    setErro('');
+    try {
+      const { data } = await api.get(`/chamados/${id}/ia/${tipo}`);
+      const texto = data.disponivel
+        ? data.resumo || data.analise || data.sugestao || ''
+        : data.mensagem || 'IA não configurada.';
+      setIaResultado({ tipo, texto });
+    } catch (err) {
+      setErro(mensagemDeErro(err, 'Erro ao consultar a IA'));
+    } finally {
+      setIaCarregando('');
+    }
+  }
 
   const carregar = useCallback(() => {
     api
@@ -117,6 +135,43 @@ export default function ChamadoDetalhe() {
         <h3>Descrição</h3>
         <p style={{ whiteSpace: 'pre-wrap' }}>{chamado.descricao}</p>
       </div>
+
+      {ehFundador() && (
+        <div className="card mt">
+          <h3>🤖 Assistente IA</h3>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn" type="button" disabled={!!iaCarregando} onClick={() => rodarIa('resumo')}>
+              {iaCarregando === 'resumo' ? '…' : 'Resumir'}
+            </button>
+            <button className="btn" type="button" disabled={!!iaCarregando} onClick={() => rodarIa('sentimento')}>
+              {iaCarregando === 'sentimento' ? '…' : 'Sentimento'}
+            </button>
+            <button className="btn" type="button" disabled={!!iaCarregando} onClick={() => rodarIa('sugestao')}>
+              {iaCarregando === 'sugestao' ? '…' : 'Sugerir resposta'}
+            </button>
+          </div>
+          {iaResultado && (
+            <div
+              style={{
+                marginTop: 12,
+                padding: '0.75rem 1rem',
+                borderRadius: 12,
+                background: 'rgba(34,211,238,0.08)',
+                whiteSpace: 'pre-wrap',
+              }}
+            >
+              {iaResultado.texto}
+              {iaResultado.tipo === 'sugestao' && iaResultado.texto && (
+                <div>
+                  <button className="btn mt" type="button" onClick={() => setMensagem(iaResultado.texto)}>
+                    Usar como resposta
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <h1 style={{ fontSize: '1.2rem', marginTop: '2rem' }}>Conversa</h1>
       <div className="card">

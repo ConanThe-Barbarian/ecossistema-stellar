@@ -51,18 +51,29 @@
   PDF de gestão e disparando via n8n/WhatsApp — o fluxo n8n já foi prototipado).
 - [x] *(12/06/2026)* **Detalhe do chamado no portal** (chat de interações + anexos — endpoints
   prontos no backend).
-- [ ] **E-mail transacional real** (confirmação de pagamento etc. — hoje é só
-  log; integrar SendGrid/Mailtrap ou similar).
+- [x] *(13/06/2026)* **E-mail transacional real** (confirmação de pagamento e
+  fatura gerada). `EmailService` (nodemailer) com template dark da Stellar,
+  env-gated por `SMTP_*`: envia de verdade quando configurado, cai pra log caso
+  contrário. Ligado no webhook de pagamento (`PAYMENT_RECEIVED/CONFIRMED`) e na
+  geração de fatura, enviando para `empresas.email_financeiro`.
 
 ### Baixa prioridade / futuro
-- [ ] **MFA no login** (campo `mfa_enabled` já existe no banco).
-- [ ] **Omnichannel completo**: abertura/atualização de chamados via WhatsApp
-  (Typebot + n8n + EvolutionAPI).
+- [x] *(13/06/2026)* **MFA no login** — 2FA por código de e-mail. Login em 2 etapas
+  (senha → código de 6 díg. por e-mail, store em memória, TTL 5min, máx 5 tentativas),
+  endpoints `/auth/mfa/verificar|ativar|desativar`, portal com 2ª etapa. Usa `mfa_enabled`.
+- [x] *(13/06/2026)* **Omnichannel WhatsApp (inbound)** — `POST /chamados/webhooks/whatsapp`
+  (token `x-webhook-token`) identifica usuário por telefone e abre chamado novo
+  (com atribuição automática) ou adiciona interação a um aberto. A orquestração
+  do fluxo fica no n8n + EvolutionAPI; o backend expõe o endpoint.
 - [ ] **IA (Vertex)**: auto-resumo de chamados, análise de sentimento e sugestão
-  de respostas.
-- [ ] **Kanban dos técnicos** com timer de apontamento de horas.
-- [ ] **Go-live Asaas produção**: trocar `ASAAS_API_URL`/`ASAAS_API_KEY`,
-  recriar webhook no painel do Asaas apontando para a URL pública da API.
+  de respostas. *(adiado a pedido — credenciais existem, implementar depois.)*
+- [x] *(13/06/2026)* **Kanban dos técnicos** — board por status (drag&drop no portal admin)
+  + apontamento de horas (`tempo_gasto_minutos`). `GET /chamados/kanban`,
+  `POST /chamados/:id/apontar-horas`.
+- [~] **Go-live Asaas produção** — runbook completo em
+  `Documentação/RUNBOOK-GOLIVE-ASAAS.md` (troca de `ASAAS_API_URL`/`KEY`/token,
+  recriação do webhook, teste ponta a ponta e rollback). Execução depende da
+  conta de produção aprovada + URL pública HTTPS.
 
 ## 3. Já implementado (confirmado no código)
 

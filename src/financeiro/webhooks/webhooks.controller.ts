@@ -1,6 +1,7 @@
 import { Controller, Post, Body, Headers, HttpCode, HttpStatus, UnauthorizedException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service'; 
 import { NotificationsService } from '../../notifications/notifications.service';
+import { EmailService } from '../../notifications/email.service';
 import { AsaasService } from '../asaas/asaas.service';
 import { AcessoService } from '../acesso/acesso.service';
 import { Public } from '../../auth/decorators/public.decorator';
@@ -12,7 +13,8 @@ export class WebhooksController {
 
   constructor(
     private readonly prisma: PrismaService, 
-    private readonly notifications: NotificationsService, 
+    private readonly notifications: NotificationsService,
+    private readonly email: EmailService,
     private readonly asaasService: AsaasService,
     private readonly acessoService: AcessoService
   ) {}
@@ -68,8 +70,9 @@ export class WebhooksController {
           data: { status: 'PAGO', data_pagamento: new Date() }
         });
 
-        const { razao_social, telefone_principal } = fatura.empresas;
+        const { razao_social, telefone_principal, email_financeiro } = fatura.empresas;
         const tel = telefone_principal ?? '';
+        const valorFmt = Number(fatura.valor).toFixed(2).replace('.', ',');
 
         // 🔓 AUTOMACAO: pagamento confirmado -> libera as ferramentas do cliente
         const liberadas = await this.acessoService.liberarAcessoEmpresa(fatura.empresa_id);
@@ -90,6 +93,16 @@ export class WebhooksController {
         if (linkRecibo) {
           await this.notifications.enviarWhatsAppRecibo(tel, razao_social, linkRecibo);
           this.logger.log(`Fluxo de pagamento finalizado com sucesso. Fatura quitada.`);
+        }
+
+        // 📧 E-mail transacional de confirmação (só envia se houver e-mail + SMTP configurado)
+        if (email_financeiro) {
+          await this.email.enviarConfirmacaoPagamento(
+            email_financeiro,
+            razao_social,
+            valorFmt,
+            linkRecibo,
+          );
         }
 
       } catch (error) {

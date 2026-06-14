@@ -7,10 +7,12 @@ import Faturas from './pages/Faturas';
 import Chamados from './pages/Chamados';
 import NovoChamado from './pages/NovoChamado';
 import ChamadoDetalhe from './pages/ChamadoDetalhe';
+import Conta from './pages/Conta';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminDre from './pages/admin/AdminDre';
 import AdminConsumo from './pages/admin/AdminConsumo';
 import AdminClientes from './pages/admin/AdminClientes';
+import AdminKanban from './pages/admin/AdminKanban';
 import { ehFundador } from './api';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -41,10 +43,12 @@ export default function App() {
         <Route path="chamados" element={<Chamados />} />
         <Route path="chamados/novo" element={<NovoChamado />} />
         <Route path="chamados/:id" element={<ChamadoDetalhe />} />
+        <Route path="conta" element={<Conta />} />
         <Route path="admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
         <Route path="admin/dre" element={<AdminRoute><AdminDre /></AdminRoute>} />
         <Route path="admin/consumo" element={<AdminRoute><AdminConsumo /></AdminRoute>} />
         <Route path="admin/clientes" element={<AdminRoute><AdminClientes /></AdminRoute>} />
+        <Route path="admin/kanban" element={<AdminRoute><AdminKanban /></AdminRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

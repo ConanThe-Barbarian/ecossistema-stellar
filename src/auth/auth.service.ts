@@ -1,13 +1,29 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailService } from '../notifications/email.service';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
+
+interface DesafioMfa {
+  userId: string;
+  codigoHash: string;
+  expiraEm: number;
+  tentativas: number;
+}
 
 @Injectable()
 export class AuthService {
+  // Store em memória dos desafios de MFA (sem necessidade de tabela no banco).
+  // Chave = mfaToken opaco; some quando expira ou quando o login é concluído.
+  private desafiosMfa = new Map<string, DesafioMfa>();
+  private readonly MFA_TTL_MS = 5 * 60 * 1000; // 5 minutos
+  private readonly MFA_MAX_TENTATIVAS = 5;
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private email: EmailService,
   ) {}
 
   // 1. Valida usuário, mas agora traz os "poderes" junto!
@@ -45,8 +61,8 @@ export class AuthService {
     };
   }
 
-  // 2. Gera o Token com as permissões embutidas
-  async login(user: any) {
+  // Emissão do token final (extraído para ser reusado pós-MFA).
+  private emitirToken(user: any) {
     // 🛡️ Blindagem Vortex: Verificamos se o objeto existe antes de ler as propriedades
     const payload = {
       sub: user.id,
@@ -70,6 +86,121 @@ export class AuthService {
         empresa: user.empresas?.razao_social
       }
     };
+  }
+
+  // 2. Login: se o usuário tiver MFA ativo, dispara o desafio por e-mail
+  //    em vez de emitir o token direto.
+  async login(user: any) {
+    if (user?.mfa_enabled) {
+      return this.iniciarDesafioMfa(user);
+    }
+    return this.emitirToken(user);
+  }
+
+  // ---- MFA (2FA por código de e-mail) ----
+
+  private gerarCodigo(): string {
+    // 6 dígitos, criptograficamente seguro (000000–999999)
+    return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
+  }
+
+  private async iniciarDesafioMfa(user: any) {
+    if (!user.email) {
+      // Sem e-mail não há como entregar o código — falha segura.
+      throw new UnauthorizedException(
+        'MFA ativo, mas o usuário não possui e-mail cadastrado. Contate o suporte.',
+      );
+    }
+
+    this.limparDesafiosExpirados();
+
+    const codigo = this.gerarCodigo();
+    const codigoHash = await bcrypt.hash(codigo, 10);
+    const mfaToken = crypto.randomUUID();
+
+    this.desafiosMfa.set(mfaToken, {
+      userId: user.id,
+      codigoHash,
+      expiraEm: Date.now() + this.MFA_TTL_MS,
+      tentativas: 0,
+    });
+
+    await this.email.enviarCodigoMfa(user.email, user.nome || 'cliente', codigo);
+
+    // E-mail mascarado para feedback no front, sem vazar o endereço completo.
+    return {
+      mfaRequired: true,
+      mfaToken,
+      email: this.mascararEmail(user.email),
+      message: 'Enviamos um código de verificação para o seu e-mail.',
+    };
+  }
+
+  async verificarMfa(mfaToken: string, codigo: string) {
+    const desafio = mfaToken ? this.desafiosMfa.get(mfaToken) : undefined;
+
+    if (!desafio || desafio.expiraEm < Date.now()) {
+      if (mfaToken) this.desafiosMfa.delete(mfaToken);
+      throw new UnauthorizedException('Código expirado ou inválido. Faça o login novamente.');
+    }
+
+    if (desafio.tentativas >= this.MFA_MAX_TENTATIVAS) {
+      this.desafiosMfa.delete(mfaToken);
+      throw new UnauthorizedException('Número máximo de tentativas excedido. Faça o login novamente.');
+    }
+
+    const ok = await bcrypt.compare(codigo || '', desafio.codigoHash);
+    if (!ok) {
+      desafio.tentativas += 1;
+      throw new UnauthorizedException('Código incorreto.');
+    }
+
+    // Sucesso: consome o desafio e emite o token com dados frescos do usuário.
+    this.desafiosMfa.delete(mfaToken);
+
+    const user = await this.prisma.usuarios.findUnique({
+      where: { id: desafio.userId },
+      include: { perfis_acesso: true, empresas: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Usuário não encontrado.');
+    }
+
+    const { senha_hash, ...result } = user;
+    return this.emitirToken(result);
+  }
+
+  // Ativa/desativa o MFA do próprio usuário logado.
+  async definirMfa(userId: string, ativar: boolean) {
+    await this.prisma.usuarios.update({
+      where: { id: userId },
+      data: { mfa_enabled: ativar },
+    });
+    return { mfa_enabled: ativar };
+  }
+
+  // Status atual do MFA do usuário logado.
+  async statusMfa(userId: string) {
+    const user = await this.prisma.usuarios.findUnique({
+      where: { id: userId },
+      select: { mfa_enabled: true },
+    });
+    return { mfa_enabled: user?.mfa_enabled ?? false };
+  }
+
+  private mascararEmail(email: string): string {
+    const [local, dominio] = email.split('@');
+    if (!dominio) return '***';
+    const visivel = local.slice(0, 2);
+    return `${visivel}${'*'.repeat(Math.max(local.length - 2, 1))}@${dominio}`;
+  }
+
+  private limparDesafiosExpirados() {
+    const agora = Date.now();
+    for (const [token, d] of this.desafiosMfa) {
+      if (d.expiraEm < agora) this.desafiosMfa.delete(token);
+    }
   }
 
   // Mantemos o registro igualzinho
