@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { usuarioLogado, ehFundador } from '../api';
+import NotificationBell from './NotificationBell';
 
 export default function Layout() {
   const navigate = useNavigate();
@@ -14,7 +15,13 @@ export default function Layout() {
   return (
     <div className="layout">
       <aside className="sidebar">
-        <div className="logo">✦ Stellar</div>
+        <div className="brand">
+          <img
+            className="brand-logo"
+            src="https://stellarsyntec.com.br/assets/logo-BezJfNUT.png"
+            alt="Stellar Syntec"
+          />
+        </div>
         <NavLink to="/" end className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
           🏠 Início
         </NavLink>
@@ -47,6 +54,15 @@ export default function Layout() {
             <NavLink to="/admin/clientes" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
               🏢 Clientes
             </NavLink>
+            <NavLink to="/admin/contratos" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+              📑 Contratos
+            </NavLink>
+            <NavLink to="/admin/planos" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+              💼 Planos
+            </NavLink>
+            <NavLink to="/admin/usuarios" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+              👥 Usuários
+            </NavLink>
             <NavLink to="/admin/kanban" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
               🗂️ Kanban
             </NavLink>
@@ -62,6 +78,9 @@ export default function Layout() {
         </div>
       </aside>
       <main className="content">
+        <div className="topbar">
+          <NotificationBell />
+        </div>
         <Outlet />
       </main>
     </div>

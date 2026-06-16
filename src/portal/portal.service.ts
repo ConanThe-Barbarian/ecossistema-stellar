@@ -108,4 +108,48 @@ export class PortalService {
 
     return faturas.map((f) => ({ ...f, valor: Number(f.valor) }));
   }
+
+  // Notificações derivadas (sem tabela própria): faturas em aberto + chamados
+  // aguardando a resposta do cliente. Itens "acionáveis" para o sino do portal.
+  async notificacoes(empresaId: string) {
+    const hoje = new Date();
+    const [faturasPendentes, chamadosPendentes] = await Promise.all([
+      this.prisma.faturas.findMany({
+        where: { empresa_id: empresaId, status: 'PENDENTE' },
+        orderBy: { data_vencimento: 'asc' },
+        select: { id: true, valor: true, data_vencimento: true },
+      }),
+      this.prisma.chamados.findMany({
+        where: { empresa_origem_id: empresaId, status: 'PENDENTE_CLIENTE' },
+        orderBy: { updated_at: 'desc' },
+        select: { id: true, titulo: true, updated_at: true },
+      }),
+    ]);
+
+    const itens = [
+      ...faturasPendentes.map((f) => {
+        const vencida = new Date(f.data_vencimento) < hoje;
+        const valor = Number(f.valor).toFixed(2).replace('.', ',');
+        return {
+          tipo: 'FATURA',
+          nivel: vencida ? 'danger' : 'info',
+          titulo: vencida ? 'Fatura vencida' : 'Fatura em aberto',
+          descricao: `R$ ${valor} • vence ${new Date(f.data_vencimento).toLocaleDateString('pt-BR')}`,
+          link: '/faturas',
+          data: f.data_vencimento,
+        };
+      }),
+      ...chamadosPendentes.map((c) => ({
+        tipo: 'CHAMADO',
+        nivel: 'warn',
+        titulo: 'Chamado aguardando sua resposta',
+        descricao: c.titulo,
+        link: `/chamados/${c.id}`,
+        data: c.updated_at,
+      })),
+    ];
+
+    itens.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+    return { total: itens.length, itens };
+  }
 }

@@ -13,6 +13,9 @@ import AdminDre from './pages/admin/AdminDre';
 import AdminConsumo from './pages/admin/AdminConsumo';
 import AdminClientes from './pages/admin/AdminClientes';
 import AdminKanban from './pages/admin/AdminKanban';
+import AdminPlanos from './pages/admin/AdminPlanos';
+import AdminUsuarios from './pages/admin/AdminUsuarios';
+import AdminContratos from './pages/admin/AdminContratos';
 import { ehFundador } from './api';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -49,6 +52,9 @@ export default function App() {
         <Route path="admin/consumo" element={<AdminRoute><AdminConsumo /></AdminRoute>} />
         <Route path="admin/clientes" element={<AdminRoute><AdminClientes /></AdminRoute>} />
         <Route path="admin/kanban" element={<AdminRoute><AdminKanban /></AdminRoute>} />
+        <Route path="admin/planos" element={<AdminRoute><AdminPlanos /></AdminRoute>} />
+        <Route path="admin/usuarios" element={<AdminRoute><AdminUsuarios /></AdminRoute>} />
+        <Route path="admin/contratos" element={<AdminRoute><AdminContratos /></AdminRoute>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

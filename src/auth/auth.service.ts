@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../notifications/email.service';
@@ -56,6 +56,7 @@ export class AuthService {
       can_generate_invoices: canGenerateInvoices,
       // Permissões derivadas (usadas pelos controllers de gestão)
       'financeiro:planos': canGenerateInvoices,
+      'financeiro:gerar': canGenerateInvoices,
       'gestao:empresas': canManageUsers,
       'gestao:contratos': canGenerateInvoices || canManageUsers,
     };
@@ -187,6 +188,25 @@ export class AuthService {
       select: { mfa_enabled: true },
     });
     return { mfa_enabled: user?.mfa_enabled ?? false };
+  }
+
+  // Troca de senha do próprio usuário (valida a senha atual).
+  async alterarSenha(userId: string, senhaAtual: string, novaSenha: string) {
+    if (!novaSenha || novaSenha.length < 8) {
+      throw new BadRequestException('A nova senha deve ter no mínimo 8 caracteres.');
+    }
+    const user = await this.prisma.usuarios.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('Usuário não encontrado.');
+
+    const ok = await bcrypt.compare(senhaAtual || '', user.senha_hash);
+    if (!ok) throw new UnauthorizedException('Senha atual incorreta.');
+
+    const hash = await bcrypt.hash(novaSenha, 10);
+    await this.prisma.usuarios.update({
+      where: { id: userId },
+      data: { senha_hash: hash, updated_at: new Date() },
+    });
+    return { ok: true, message: 'Senha alterada com sucesso.' };
   }
 
   private mascararEmail(email: string): string {

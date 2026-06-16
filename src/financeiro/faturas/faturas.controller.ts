@@ -24,43 +24,51 @@ export class FaturasController {
   @Post('setup-cobaia')
   @RequirePermission('can_manage_users') 
   async setupCobaia() {
-    console.log('🏗️ [Stellar Finance] Criando ambiente de teste...');
+    console.log('🏗️ [Stellar Finance] Preparando ambiente de teste (idempotente)...');
 
-    // 1. Criar a Empresa Cobaia (Usando a injecao direta do prisma)
-    const empresa = await this.prisma.empresas.create({
-      data: {
+    // 1. Empresa cobaia — idempotente pelo CNPJ (campo único)
+    const empresa = await this.prisma.empresas.upsert({
+      where: { cnpj_cpf: '61930808000162' },
+      update: {},
+      create: {
         razao_social: 'Escola de Musica RP - TESTE',
-        cnpj_cpf: '61930808000162', 
+        cnpj_cpf: '61930808000162',
         tipo_empresa: 'CLIENTE',
         status: 'ATIVO',
         email_financeiro: 'financeiro@stellarsyntec.com.br',
-      }
+      },
     });
 
-    // 2. Criar um Plano
-    const plano = await this.prisma.planos.create({
-      data: {
-        nome: 'Plano Alpha - Automacao',
-        tipo_preco: 'FIXO',
-        valor_base: 1500.00,
-      }
+    // 2. Plano — reaproveita se já existir (nome não é único, então findFirst)
+    let plano = await this.prisma.planos.findFirst({
+      where: { nome: 'Plano Alpha - Automacao' },
     });
+    if (!plano) {
+      plano = await this.prisma.planos.create({
+        data: { nome: 'Plano Alpha - Automacao', tipo_preco: 'FIXO', valor_base: 1500.0 },
+      });
+    }
 
-    // 3. Criar o Contrato
-    const contrato = await this.prisma.contratos.create({
-      data: {
-        empresa_id: empresa.id,
-        plano_id: plano.id,
-        valor_mensalidade: 1500.00,
-        dia_vencimento: 15,
-        status: 'ATIVO',
-      }
+    // 3. Contrato ativo — reaproveita o existente da empresa, senão cria
+    let contrato = await this.prisma.contratos.findFirst({
+      where: { empresa_id: empresa.id, status: 'ATIVO' },
     });
+    if (!contrato) {
+      contrato = await this.prisma.contratos.create({
+        data: {
+          empresa_id: empresa.id,
+          plano_id: plano.id,
+          valor_mensalidade: 1500.0,
+          dia_vencimento: 15,
+          status: 'ATIVO',
+        },
+      });
+    }
 
     return {
-      message: '🚀 Ambiente pronto! Use o ID do contrato abaixo para testar o Asaas.',
+      message: '🚀 Ambiente pronto (reaproveitado se já existia). Use o contrato_id para testar o Asaas.',
       contrato_id: contrato.id,
-      empresa: empresa.razao_social
+      empresa: empresa.razao_social,
     };
   }
 }

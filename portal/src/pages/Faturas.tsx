@@ -99,11 +99,23 @@ export default function Faturas() {
                       : '—'}
                   </td>
                   <td>
-                    {f.url_fatura && (
-                      <a className="btn btn-ghost" href={f.url_fatura} target="_blank" rel="noreferrer">
-                        Boleto / PIX
-                      </a>
-                    )}
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                      {f.url_fatura && (
+                        <a className="btn btn-ghost" href={f.url_fatura} target="_blank" rel="noreferrer" style={{ fontSize: 12, padding: '4px 10px' }}>
+                          Boleto / PIX
+                        </a>
+                      )}
+                      {f.linha_digitavel && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          style={{ fontSize: 12, padding: '4px 10px' }}
+                          onClick={() => navigator.clipboard.writeText(f.linha_digitavel!)}
+                        >
+                          Copiar código
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

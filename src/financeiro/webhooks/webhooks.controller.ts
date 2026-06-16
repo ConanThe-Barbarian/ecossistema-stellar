@@ -1,5 +1,6 @@
 import { Controller, Post, Body, Headers, HttpCode, HttpStatus, UnauthorizedException, Logger } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service'; 
+import { SkipThrottle } from '@nestjs/throttler';
+import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { EmailService } from '../../notifications/email.service';
 import { AsaasService } from '../asaas/asaas.service';
@@ -12,7 +13,7 @@ export class WebhooksController {
   private readonly logger = new Logger(WebhooksController.name);
 
   constructor(
-    private readonly prisma: PrismaService, 
+    private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly email: EmailService,
     private readonly asaasService: AsaasService,
@@ -20,23 +21,34 @@ export class WebhooksController {
   ) {}
 
   @Public()
+  @SkipThrottle()
   @Post()
   @HttpCode(HttpStatus.OK)
   async receberEventoAsaas(
     @Body() payload: any,
-    @Headers('asaas-access-token') ASAAS_WEBHOOK_TOKEN: string, 
+    @Headers('asaas-access-token') ASAAS_WEBHOOK_TOKEN: string,
   ) {
+    // 1. Validação do token (síncrona, antes de responder)
     const tokenCorreto = Buffer.from(process.env.ASAAS_WEBHOOK_TOKEN || 'token_nao_configurado');
     const tokenEnviado = Buffer.from(ASAAS_WEBHOOK_TOKEN || 'token_vazio');
 
     if (
-      tokenCorreto.length !== tokenEnviado.length || 
+      tokenCorreto.length !== tokenEnviado.length ||
       !crypto.timingSafeEqual(tokenCorreto, tokenEnviado)
     ) {
       this.logger.warn('Tentativa de invasão bloqueada no Webhook. Token ausente ou inválido.');
       throw new UnauthorizedException('Token de webhook inválido. Acesso negado.');
     }
 
+    // 2. Responde 200 IMEDIATAMENTE e processa em segundo plano.
+    //    Evita timeout no Asaas (o processamento busca recibo com esperas de até ~32s),
+    //    o que penalizava e pausava a fila de webhooks.
+    void this.processarEvento(payload);
+    return { received: true };
+  }
+
+  // Processamento em segundo plano (fire-and-forget). Nunca lança para fora.
+  private async processarEvento(payload: any) {
     const paymentId = payload?.payment?.id;
     const eventType = payload?.event;
 
@@ -86,7 +98,7 @@ export class WebhooksController {
         while (!linkRecibo && tentativas < 4) {
           tentativas++;
           this.logger.debug(`Buscando recibo oficial no Asaas (Tentativa ${tentativas}/4)...`);
-          await new Promise(res => setTimeout(res, 8000)); 
+          await new Promise(res => setTimeout(res, 8000));
           linkRecibo = await this.asaasService.obterLinkComprovante(paymentId);
         }
 
@@ -120,7 +132,7 @@ export class WebhooksController {
         if (faturaPendente && faturaPendente.status !== 'PAGO') {
           const { razao_social, telefone_principal } = faturaPendente.empresas;
           const tel = telefone_principal ?? '';
-          
+
           await this.notifications.enviarWhatsAppAlertaAtraso(
             tel,
             razao_social,

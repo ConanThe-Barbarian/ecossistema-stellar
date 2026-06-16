@@ -21,6 +21,11 @@ export class PermissionsGuard implements CanActivate {
     // 2. Pega os dados do usuário que o JwtAuthGuard injetou na requisição
     const { user } = context.switchToHttp().getRequest();
 
+    // 2.1. Super Admin (fundadores da Stellar) têm acesso total — bypass de permissões
+    if (user?.perfil === 'Super Admin') {
+      return true;
+    }
+
     // 3. Valida se o usuário tem a permissão necessária dentro do objeto 'permissoes' do seu Token
     if (user.permissoes && user.permissoes[requiredPermission] === true) {
       return true;

@@ -18,9 +18,11 @@ export class AsaasService {
   // 👤 CRIA O REGISTO DO CLIENTE (Customer)
   async criarCliente(dados: { nome: string; cnpjCpf: string; email?: string }) {
     try {
+      // Asaas aceita apenas dígitos no CPF/CNPJ — removemos qualquer formatação
+      const cpfCnpjLimpo = (dados.cnpjCpf || '').replace(/\D/g, '');
       const response = await this.http.post('customers', {
         name: dados.nome,
-        cpfCnpj: dados.cnpjCpf,
+        cpfCnpj: cpfCnpjLimpo,
         email: dados.email,
       });
       return response.data;

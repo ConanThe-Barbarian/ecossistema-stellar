@@ -67,4 +67,10 @@ describe('AuthService — MFA por e-mail', () => {
     expect(await svc.definirMfa('u1', false)).toEqual({ mfa_enabled: false });
     expect(await svc.statusMfa('u1')).toEqual({ mfa_enabled: true });
   });
+
+  it('buildPermissoes inclui financeiro:gerar para quem pode faturar', () => {
+    const perms = (novo() as any).buildPermissoes({ can_generate_invoices: true });
+    expect(perms['financeiro:gerar']).toBe(true);
+    expect(perms['financeiro:planos']).toBe(true);
+  });
 });

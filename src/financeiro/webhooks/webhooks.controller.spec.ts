@@ -27,10 +27,8 @@ describe('WebhooksController — Asaas', () => {
       liberarAcessoEmpresa: jest.fn(async () => 1),
       bloquearAcessoEmpresa: jest.fn(async () => 1),
     };
-    return {
-      ctrl: new WebhooksController(prisma, notifications, email, asaas, acesso),
-      notifications, email, acesso,
-    };
+    const ctrl = new WebhooksController(prisma, notifications, email, asaas, acesso);
+    return { ctrl, notifications, email, acesso };
   }
 
   const faturaPendente = {
@@ -38,16 +36,22 @@ describe('WebhooksController — Asaas', () => {
     empresas: { razao_social: 'Escola', telefone_principal: '11999999999', email_financeiro: 'fin@escola.com' },
   };
 
-  it('token inválido é rejeitado', async () => {
+  it('token inválido é rejeitado (handler síncrono)', async () => {
     const { ctrl } = montar(faturaPendente);
     await expect(
       ctrl.receberEventoAsaas({ event: 'PAYMENT_RECEIVED', payment: { id: 'p1' } }, 'errado'),
     ).rejects.toThrow();
   });
 
+  it('token válido responde 200 imediatamente (sem aguardar processamento)', async () => {
+    const { ctrl } = montar(faturaPendente);
+    const r = await ctrl.receberEventoAsaas({ event: 'PAYMENT_RECEIVED', payment: { id: 'p1' } }, TOKEN);
+    expect(r).toEqual({ received: true });
+  });
+
   it('PAYMENT_RECEIVED libera acesso e notifica (WhatsApp + e-mail)', async () => {
     const { ctrl, notifications, email, acesso } = montar(faturaPendente);
-    await ctrl.receberEventoAsaas({ event: 'PAYMENT_RECEIVED', payment: { id: 'p1' } }, TOKEN);
+    await (ctrl as any).processarEvento({ event: 'PAYMENT_RECEIVED', payment: { id: 'p1' } });
     expect(acesso.liberarAcessoEmpresa).toHaveBeenCalledWith('e1');
     expect(notifications.enviarWhatsAppRecibo).toHaveBeenCalled();
     expect(email.enviarConfirmacaoPagamento).toHaveBeenCalledWith(
@@ -57,13 +61,13 @@ describe('WebhooksController — Asaas', () => {
 
   it('fatura já PAGA é idempotente (não reprocessa)', async () => {
     const { ctrl, acesso } = montar({ ...faturaPendente, status: 'PAGO' });
-    await ctrl.receberEventoAsaas({ event: 'PAYMENT_RECEIVED', payment: { id: 'p1' } }, TOKEN);
+    await (ctrl as any).processarEvento({ event: 'PAYMENT_RECEIVED', payment: { id: 'p1' } });
     expect(acesso.liberarAcessoEmpresa).not.toHaveBeenCalled();
   });
 
   it('PAYMENT_OVERDUE bloqueia acesso e alerta', async () => {
     const { ctrl, notifications, acesso } = montar(faturaPendente);
-    await ctrl.receberEventoAsaas({ event: 'PAYMENT_OVERDUE', payment: { id: 'p1' } }, TOKEN);
+    await (ctrl as any).processarEvento({ event: 'PAYMENT_OVERDUE', payment: { id: 'p1' } });
     expect(acesso.bloquearAcessoEmpresa).toHaveBeenCalled();
     expect(notifications.enviarWhatsAppAlertaAtraso).toHaveBeenCalled();
   });

@@ -50,6 +50,14 @@ export class AuthController {
     return this.authService.statusMfa(userId);
   }
 
+  @Post('alterar-senha')
+  async alterarSenha(
+    @CurrentUser('id') userId: string,
+    @Body() body: { senhaAtual: string; novaSenha: string },
+  ) {
+    return this.authService.alterarSenha(userId, body?.senhaAtual, body?.novaSenha);
+  }
+
   // Adicione esta rota no seu AuthController
   @Public()
   @Post('register')

@@ -23,4 +23,9 @@ export class PortalController {
   async faturas(@Req() req: AuthenticatedRequest) {
     return this.portalService.faturas(req.user.empresa_id);
   }
+
+  @Get('notificacoes')
+  async notificacoes(@Req() req: AuthenticatedRequest) {
+    return this.portalService.notificacoes(req.user.empresa_id);
+  }
 }

@@ -8,6 +8,7 @@ interface Interacao {
   is_nota_interna: boolean;
   created_at: string;
   usuarios: { nome: string };
+  anexos?: { id: string; nome_arquivo: string }[];
 }
 
 interface ChamadoDetalhado {
@@ -70,7 +71,20 @@ export default function ChamadoDetalhe() {
 
   useEffect(() => {
     carregar();
+    // auto-refresh do chat a cada 15s
+    const t = setInterval(carregar, 15000);
+    return () => clearInterval(t);
   }, [carregar]);
+
+  async function abrirAnexo(nome: string) {
+    try {
+      const resp = await api.get(`/chamados/anexo/${nome}`, { responseType: 'blob' });
+      const url = URL.createObjectURL(resp.data);
+      window.open(url, '_blank');
+    } catch {
+      setErro('Não foi possível abrir o anexo.');
+    }
+  }
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
@@ -201,6 +215,21 @@ export default function ChamadoDetalhe() {
                 {new Date(i.created_at).toLocaleString('pt-BR')}
               </div>
               <div style={{ whiteSpace: 'pre-wrap' }}>{i.mensagem}</div>
+              {i.anexos && i.anexos.length > 0 && (
+                <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {i.anexos.map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => abrirAnexo(a.nome_arquivo)}
+                      className="btn btn-ghost"
+                      style={{ fontSize: 12, padding: '4px 10px' }}
+                    >
+                      📎 {a.nome_arquivo}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}

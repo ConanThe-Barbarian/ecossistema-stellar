@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api, desembrulhar, mensagemDeErro } from '../../api';
 
 interface Empresa {
@@ -20,19 +20,74 @@ function fmtDoc(doc: string) {
   return doc;
 }
 
+const FORM_VAZIO = {
+  razao_social: '',
+  nome_fantasia: '',
+  cnpj_cpf: '',
+  tipo_empresa: 'CLIENTE',
+  email_financeiro: '',
+  telefone_principal: '',
+};
+
 export default function AdminClientes() {
   const [empresas, setEmpresas] = useState<Empresa[] | null>(null);
   const [erro, setErro] = useState('');
   const [filtro, setFiltro] = useState('');
+  const [mostrarForm, setMostrarForm] = useState(false);
+  const [form, setForm] = useState({ ...FORM_VAZIO });
+  const [salvando, setSalvando] = useState(false);
 
-  useEffect(() => {
+  const carregar = useCallback(() => {
     api
       .get('/empresas')
       .then(({ data }) => setEmpresas(desembrulhar<Empresa[]>(data) ?? []))
       .catch((err) => setErro(mensagemDeErro(err, 'Erro ao carregar clientes')));
   }, []);
 
-  if (erro) return <div className="erro">{erro}</div>;
+  useEffect(() => {
+    carregar();
+  }, [carregar]);
+
+  function campo(k: keyof typeof FORM_VAZIO, v: string) {
+    setForm((f) => ({ ...f, [k]: v }));
+  }
+
+  async function criar(e: React.FormEvent) {
+    e.preventDefault();
+    setSalvando(true);
+    setErro('');
+    try {
+      const payload: any = {
+        razao_social: form.razao_social,
+        cnpj_cpf: form.cnpj_cpf.replace(/\D/g, ''),
+        tipo_empresa: form.tipo_empresa,
+      };
+      if (form.nome_fantasia) payload.nome_fantasia = form.nome_fantasia;
+      if (form.email_financeiro) payload.email_financeiro = form.email_financeiro;
+      if (form.telefone_principal) payload.telefone_principal = form.telefone_principal;
+      await api.post('/empresas', payload);
+      setForm({ ...FORM_VAZIO });
+      setMostrarForm(false);
+      carregar();
+    } catch (err) {
+      setErro(mensagemDeErro(err, 'Erro ao criar a empresa'));
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function remover(emp: Empresa) {
+    if (!window.confirm(`Remover a empresa "${emp.razao_social}"? Esta ação não pode ser desfeita.`)) return;
+    setErro('');
+    try {
+      await api.delete(`/empresas/${emp.id}`);
+      carregar();
+    } catch (err) {
+      setErro(mensagemDeErro(err, 'Não foi possível remover (verifique se há contrato ativo)'));
+    }
+  }
+
+  if (erro && !empresas) return <div className="erro">{erro}</div>;
   if (!empresas) return <p className="muted">Carregando…</p>;
 
   const visiveis = empresas.filter(
@@ -44,7 +99,57 @@ export default function AdminClientes() {
 
   return (
     <>
-      <h1>🏢 Clientes & Empresas</h1>
+      <h1>
+        🏢 Clientes & Empresas
+        <button
+          className="btn"
+          style={{ float: 'right', fontSize: '0.85rem' }}
+          onClick={() => setMostrarForm((v) => !v)}
+        >
+          {mostrarForm ? 'Fechar' : '+ Novo cliente'}
+        </button>
+      </h1>
+
+      {mostrarForm && (
+        <form className="card" style={{ marginBottom: '1.25rem', maxWidth: 720 }} onSubmit={criar}>
+          <div className="grid grid-2">
+            <div>
+              <label>Razão social *</label>
+              <input value={form.razao_social} onChange={(e) => campo('razao_social', e.target.value)} required />
+            </div>
+            <div>
+              <label>Nome fantasia</label>
+              <input value={form.nome_fantasia} onChange={(e) => campo('nome_fantasia', e.target.value)} />
+            </div>
+            <div>
+              <label>CNPJ / CPF *</label>
+              <input value={form.cnpj_cpf} onChange={(e) => campo('cnpj_cpf', e.target.value)} required />
+            </div>
+            <div>
+              <label>Tipo</label>
+              <select value={form.tipo_empresa} onChange={(e) => campo('tipo_empresa', e.target.value)}>
+                <option value="CLIENTE">CLIENTE</option>
+                <option value="FORNECEDOR">FORNECEDOR</option>
+                <option value="PARCEIRO">PARCEIRO</option>
+                <option value="INTERNA">INTERNA</option>
+              </select>
+            </div>
+            <div>
+              <label>E-mail financeiro</label>
+              <input type="email" value={form.email_financeiro} onChange={(e) => campo('email_financeiro', e.target.value)} />
+            </div>
+            <div>
+              <label>Telefone (WhatsApp)</label>
+              <input value={form.telefone_principal} onChange={(e) => campo('telefone_principal', e.target.value)} />
+            </div>
+          </div>
+          {erro && <div className="erro">{erro}</div>}
+          <button className="btn mt" type="submit" disabled={salvando || !form.razao_social || !form.cnpj_cpf}>
+            {salvando ? 'Salvando…' : 'Cadastrar empresa'}
+          </button>
+        </form>
+      )}
+
       <input
         placeholder="Buscar por nome ou CNPJ/CPF…"
         value={filtro}
@@ -62,6 +167,7 @@ export default function AdminClientes() {
               <th>Contratos</th>
               <th>Usuários</th>
               <th>Contato</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -83,6 +189,16 @@ export default function AdminClientes() {
                 <td className="muted" style={{ fontSize: '0.82rem' }}>
                   {e.email_financeiro ?? ''}
                   {e.telefone_principal ? <div>{e.telefone_principal}</div> : null}
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{ fontSize: 12, padding: '4px 10px' }}
+                    onClick={() => remover(e)}
+                  >
+                    Remover
+                  </button>
                 </td>
               </tr>
             ))}

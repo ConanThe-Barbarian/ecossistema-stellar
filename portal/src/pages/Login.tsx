@@ -72,8 +72,11 @@ export default function Login() {
     <div className="login-wrap">
       {!mfaToken ? (
         <form className="card login-card" onSubmit={entrar}>
-          <div className="logo">✦ Stellar</div>
-          <div className="sub">Portal do Cliente — Ecossistema Stellar</div>
+          <div className="brand">
+            <img className="brand-logo" src="https://stellarsyntec.com.br/assets/logo-BezJfNUT.png" alt="Stellar Syntec" />
+          </div>
+          <div className="tagline">Onde a tecnologia encontra o Infinito</div>
+          <div className="sub">Portal do Cliente</div>
 
           <label htmlFor="email">E-mail</label>
           <input
@@ -102,7 +105,9 @@ export default function Login() {
         </form>
       ) : (
         <form className="card login-card" onSubmit={verificarCodigo}>
-          <div className="logo">✦ Stellar</div>
+          <div className="brand">
+            <img className="brand-logo" src="https://stellarsyntec.com.br/assets/logo-BezJfNUT.png" alt="Stellar Syntec" />
+          </div>
           <div className="sub">Verificação em duas etapas</div>
           <p style={{ fontSize: 14, color: '#94a3b8', margin: '8px 0 16px' }}>
             Enviamos um código de 6 dígitos para <strong>{emailMascarado}</strong>.

@@ -36,18 +36,26 @@ async enviarWhatsAppRecibo(telefone: string, nome: string, linkRecibo: string) {
       });
 
       console.log(`📱 [Stellar Notifications] Recibo enviado: ${nome}`);
-    } catch (error) {
-      console.error('❌ [Stellar Notifications] Erro ao enviar recibo:', error);
+    } catch (error: any) {
+      const detalhe = error?.response?.data || error?.message;
+      console.error('❌ [Stellar Notifications] Erro ao enviar recibo (ignorado):', detalhe);
     }
   }
 
-// Método auxiliar para evitar repetição de código
+// Método auxiliar para evitar repetição de código.
+// Best-effort: uma falha de WhatsApp (Evolution fora do ar, instância não
+// conectada, etc.) NÃO pode derrubar o fluxo de negócio (gerar fatura, etc.).
 private async dispararEvolution(payload: any) {
-  const baseUrl = process.env.EVOLUTION_API_URL?.replace(/\/$/, '');
-  const instance = encodeURIComponent(process.env.EVOLUTION_INSTANCE || '');
-  await axios.post(`${baseUrl}/message/sendText/${instance}`, payload, {
-    headers: { 'apikey': process.env.EVOLUTION_API_KEY }
-  });
+  try {
+    const baseUrl = process.env.EVOLUTION_API_URL?.replace(/\/$/, '');
+    const instance = encodeURIComponent(process.env.EVOLUTION_INSTANCE || '');
+    await axios.post(`${baseUrl}/message/sendText/${instance}`, payload, {
+      headers: { 'apikey': process.env.EVOLUTION_API_KEY }
+    });
+  } catch (error: any) {
+    const detalhe = error?.response?.data || error?.message;
+    console.error('❌ [Stellar Notifications] Falha ao enviar WhatsApp (ignorada):', detalhe);
+  }
 }
 
 async enviarWhatsAppLembreteVencimento(telefone: string, nome: string, valor: string, dataVencimento: string, linkFatura: string) {
