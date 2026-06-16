@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { GraduationCap, Car, Headset } from 'lucide-react';
 import { api, desembrulhar, mensagemDeErro } from '../api';
+
+const h3Icon = { display: 'flex', alignItems: 'center', gap: 8 } as const;
 
 interface Resumo {
   empresa: { id: string; nome: string };
@@ -42,7 +45,7 @@ export default function Inicio() {
 
   return (
     <>
-      <h1>Olá, {resumo.empresa.nome} 👋</h1>
+      <h1>Olá, {resumo.empresa.nome}</h1>
 
       <div className="grid grid-3">
         <div className="card">
@@ -87,7 +90,7 @@ export default function Inicio() {
               )}
             </>
           ) : (
-            <p className="muted">Nenhuma fatura pendente 🎉</p>
+            <p className="muted">Nenhuma fatura pendente.</p>
           )}
         </div>
       </div>
@@ -97,7 +100,7 @@ export default function Inicio() {
       </h1>
       <div className="grid grid-3">
         <div className="card">
-          <h3>🎓 Treinamento</h3>
+          <h3 style={h3Icon}><GraduationCap size={16} /> Treinamento</h3>
           <p className="muted">Gratuito para clientes com ferramentas ativas.</p>
           <button
             className="btn btn-ghost mt"
@@ -107,7 +110,7 @@ export default function Inicio() {
           </button>
         </div>
         <div className="card">
-          <h3>🚗 Visita Presencial</h3>
+          <h3 style={h3Icon}><Car size={16} /> Visita Presencial</h3>
           <p className="muted">Atendimento no local (serviço com custo adicional).</p>
           <button
             className="btn btn-ghost mt"
@@ -117,7 +120,7 @@ export default function Inicio() {
           </button>
         </div>
         <div className="card">
-          <h3>🎫 Suporte</h3>
+          <h3 style={h3Icon}><Headset size={16} /> Suporte</h3>
           <p className="muted">Abra um chamado para nossa equipe técnica.</p>
           <Link className="btn btn-ghost mt" to="/chamados/novo">
             Abrir chamado

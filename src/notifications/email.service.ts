@@ -69,7 +69,7 @@ export class EmailService {
     const transporter = this.getTransporter();
     if (!transporter) {
       this.logger.log(
-        `📧 [Email/log] SMTP não configurado — e-mail NÃO enviado. Para: ${destino} | Assunto: "${assunto}"`,
+        `[Email/log] SMTP não configurado — e-mail NÃO enviado. Para: ${destino} | Assunto: "${assunto}"`,
       );
       return false;
     }
@@ -81,10 +81,10 @@ export class EmailService {
         subject: assunto,
         html,
       });
-      this.logger.log(`📧 [Email] Enviado para ${destino} — "${assunto}"`);
+      this.logger.log(`[Email] Enviado para ${destino} — "${assunto}"`);
       return true;
     } catch (error) {
-      this.logger.error(`❌ [Email] Falha ao enviar para ${destino}:`, error);
+      this.logger.error(`[Email] Falha ao enviar para ${destino}:`, error);
       return false;
     }
   }
@@ -112,7 +112,7 @@ export class EmailService {
       <p style="margin:0 0 16px 0;">
         Confirmamos o recebimento do seu pagamento de
         <strong style="color:#22d3ee;">R$ ${valor}</strong>.
-        A fatura já foi liquidada em nosso sistema e seus serviços seguem ativos. 🚀
+        A fatura já foi liquidada em nosso sistema e seus serviços seguem ativos.
       </p>
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         ${botaoRecibo}

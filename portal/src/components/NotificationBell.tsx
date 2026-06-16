@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Bell } from 'lucide-react';
 import { api } from '../api';
 
 interface Notif {
@@ -46,7 +47,7 @@ export default function NotificationBell() {
   return (
     <div className="notif" ref={ref}>
       <button className="notif-btn" onClick={() => setAberto((v) => !v)} aria-label="Notificações">
-        🔔
+        <Bell size={18} />
         {itens.length > 0 && <span className="notif-badge">{itens.length}</span>}
       </button>
       {aberto && (

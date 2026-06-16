@@ -105,7 +105,9 @@ body::before {
 }
 
 .nav-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   padding: 0.7rem 0.9rem;
   border-radius: 10px;
   color: var(--txt-dim);
@@ -202,7 +204,7 @@ select option { background: var(--surface); }
 /* ─── Notificações (sino) ─── */
 .topbar { display: flex; justify-content: flex-end; margin-bottom: 0.5rem; }
 .notif { position: relative; }
-.notif-btn { position: relative; background: transparent; border: 1px solid var(--border); border-radius: 10px; padding: 0.4rem 0.65rem; font-size: 1.1rem; cursor: pointer; color: var(--txt); }
+.notif-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 1px solid var(--border); border-radius: 10px; padding: 0.5rem 0.6rem; cursor: pointer; color: var(--txt); }
 .notif-btn:hover { background: rgba(0, 212, 255, 0.08); }
 .notif-badge { position: absolute; top: -6px; right: -6px; background: var(--danger); color: #fff; font-size: 0.65rem; font-weight: 700; min-width: 18px; height: 18px; border-radius: 99px; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
 .notif-drop { position: absolute; right: 0; top: 120%; width: 320px; max-height: 380px; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 16px 40px rgba(0,0,0,0.5); z-index: 50; }
@@ -216,6 +218,15 @@ select option { background: var(--surface); }
 .notif-dot.info { background: var(--accent); }
 .notif-dot.warn { background: var(--warn); }
 .notif-dot.danger { background: var(--danger); }
+
+/* ─── Modal de confirmação / prompt ─── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0, 0, 10, 0.6); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; animation: modal-fade 0.12s ease-out; }
+.modal-card { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6); }
+.modal-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--txt); }
+.modal-msg { color: var(--txt-dim); font-size: 0.92rem; line-height: 1.5; }
+.modal-acoes { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1.5rem; }
+.btn-perigo { background: linear-gradient(135deg, #f87171, #dc2626); color: #fff; }
+@keyframes modal-fade { from { opacity: 0; } to { opacity: 1; } }
 
 /* ─── Responsivo ─── */
 @media (max-width: 760px) {

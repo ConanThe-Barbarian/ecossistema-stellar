@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WebhooksService } from '../webhooks/webhooks.service';
 import { UpdateChamadoDto } from './dto/update-chamado.dto';
@@ -9,11 +9,38 @@ import { CreateChamadoDto } from './dto/create-chamado.dto';
 export class ChamadosService {
   constructor(private prisma: PrismaService, private webhooksService: WebhooksService) {}
 
-async criarChamado(dados: CreateChamadoDto, usuarioId: string, empresaId: string) {
-    // ✨ NOVIDADE: Chama o motor de SLA antes de criar
+  // Resolve a empresa da Stellar (a "casa") — usada nas regras de visibilidade.
+  private async getStellarId(): Promise<string | null> {
+    const s = await this.prisma.empresas.findFirst({
+      where: { razao_social: { contains: 'STELLAR' }, deleted_at: null },
+      select: { id: true },
+    });
+    return s?.id ?? null;
+  }
+
+  async criarChamado(dados: CreateChamadoDto, usuarioLogado: any) {
+    const empresaId = usuarioLogado.empresa_id;
+    const usuarioId = usuarioLogado.userId ?? usuarioLogado.id;
+    const stellarId = await this.getStellarId();
+
+    const responsavelId = dados.empresa_responsavel_id;
+    const ehExterno = !!stellarId && responsavelId === stellarId; // chamado PARA a Stellar
+    const ehInterno = responsavelId === empresaId;                // chamado interno da própria empresa
+
+    // Cliente só pode abrir chamado interno (própria empresa) ou externo (Stellar)
+    if (!ehExterno && !ehInterno) {
+      throw new ForbiddenException(
+        'Destino inválido: só é permitido abrir chamado interno (própria empresa) ou para a Stellar.',
+      );
+    }
+    // Regra de negócio: chamado para a Stellar exige permissão de chamado externo
+    if (ehExterno && !usuarioLogado.permissoes?.can_open_stellar_ticket) {
+      throw new ForbiddenException('Apenas o administrador da empresa pode abrir chamados para a Stellar.');
+    }
+
     const { dataLimiteResposta, dataLimiteSolucao } = await this.calcularPrazosSla(
-      empresaId, 
-      dados.prioridade
+      empresaId,
+      dados.prioridade,
     );
 
     return this.prisma.chamados.create({
@@ -25,8 +52,7 @@ async criarChamado(dados: CreateChamadoDto, usuarioId: string, empresaId: string
         status: 'NOVO',
         requerente_id: usuarioId,
         empresa_origem_id: empresaId,
-        empresa_responsavel_id: dados.empresa_responsavel_id,
-        // ✨ Gravando os prazos calculados automaticamente!
+        empresa_responsavel_id: responsavelId,
         data_limite_resposta: dataLimiteResposta,
         data_limite_solucao: dataLimiteSolucao,
       },
@@ -68,11 +94,14 @@ async criarChamado(dados: CreateChamadoDto, usuarioId: string, empresaId: string
   }
 
 async listarChamados(usuarioLogado: any) {
-    // 1. O Escudo de Visibilidade (Quem é o cara na Stellar?)
-    const temVisaoGlobal = usuarioLogado.perfil === 'Super Admin' || usuarioLogado.permissoes?.can_manage_users;
-    
-    const filtro = temVisaoGlobal 
-      ? {} 
+    // 1. O Escudo de Visibilidade
+    // Stellar vê SÓ o que foi aberto para ela (+ internos da própria Stellar).
+    // Cliente vê SÓ os chamados da própria empresa (internos + os abertos p/ Stellar).
+    const stellarId = await this.getStellarId();
+    const ehStellar = !!stellarId && usuarioLogado.empresa_id === stellarId;
+
+    const filtro = ehStellar
+      ? { empresa_responsavel_id: stellarId! }
       : { empresa_origem_id: usuarioLogado.empresa_id };
 
     // 2. A Busca Inteligente (Ordenando pela "bomba" que vai estourar primeiro)
@@ -118,19 +147,22 @@ async listarChamados(usuarioLogado: any) {
       return {
         ...chamado,
         indicador_sla: statusSla,
-        horas_para_vencer: horasRestantes > 0 ? Math.floor(horasRestantes) : 0
+        horas_para_vencer: horasRestantes > 0 ? Math.floor(horasRestantes) : 0,
+        // interno = origem e responsável são a mesma empresa
+        interno: chamado.empresa_origem_id === chamado.empresa_responsavel_id,
       };
     });
   }
 
   async buscarPorId(id: string, usuarioLogado: any) {
-    // 1. Blindagem: Quem é o cara?
-    const temVisaoGlobal = usuarioLogado.perfil === 'Super Admin' || usuarioLogado.permissoes?.can_manage_users;
-    
-    // 2. A Regra do Jogo: Admin busca só pelo ID. Cliente busca pelo ID + ID da sua empresa.
-    const filtro = temVisaoGlobal 
-      ? { id: id } 
-      : { id: id, empresa_origem_id: usuarioLogado.empresa_id };
+    // 1. Blindagem de visibilidade (mesma regra da listagem)
+    const stellarId = await this.getStellarId();
+    const ehStellar = !!stellarId && usuarioLogado.empresa_id === stellarId;
+
+    // Stellar só abre chamado cujo responsável é a Stellar; cliente só os da sua empresa.
+    const filtro = ehStellar
+      ? { id, empresa_responsavel_id: stellarId as string }
+      : { id, empresa_origem_id: usuarioLogado.empresa_id };
 
     // 3. A Busca Cirúrgica com o "Pacote Completo" (Bloco 3)
     const chamado = await this.prisma.chamados.findFirst({
@@ -145,7 +177,7 @@ async listarChamados(usuarioLogado: any) {
         
         // Traz todo o chat do chamado em ordem cronológica
         interacoes: {
-          where: temVisaoGlobal ? undefined : { is_nota_interna: false },
+          where: ehStellar ? undefined : { is_nota_interna: false },
           orderBy: { created_at: 'asc' }, // Do mais antigo pro mais novo
           include: {
             usuarios: { select: { nome: true } }, // Traz o nome de quem mandou a mensagem

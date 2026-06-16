@@ -40,7 +40,7 @@ export default function App() {
           </PrivateRoute>
         }
       >
-        <Route index element={<Inicio />} />
+        <Route index element={ehFundador() ? <Navigate to="/admin" replace /> : <Inicio />} />
         <Route path="ferramentas" element={<Ferramentas />} />
         <Route path="faturas" element={<Faturas />} />
         <Route path="chamados" element={<Chamados />} />

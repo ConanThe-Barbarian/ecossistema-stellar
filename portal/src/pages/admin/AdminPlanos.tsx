@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, desembrulhar, mensagemDeErro } from '../../api';
+import { useConfirm } from '../../components/ConfirmProvider';
 
 interface Plano {
   id: string;
@@ -17,6 +18,7 @@ export default function AdminPlanos() {
   const [tipo, setTipo] = useState('FIXO');
   const [valor, setValor] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const { confirm } = useConfirm();
 
   const carregar = useCallback(() => {
     api
@@ -50,7 +52,13 @@ export default function AdminPlanos() {
   }
 
   async function remover(p: Plano) {
-    if (!window.confirm(`Remover o plano "${p.nome}"?`)) return;
+    const ok = await confirm({
+      titulo: 'Remover plano',
+      mensagem: `Remover o plano "${p.nome}"?`,
+      confirmar: 'Remover',
+      perigo: true,
+    });
+    if (!ok) return;
     try {
       await api.delete(`/financeiro/planos/${p.id}`);
       carregar();
@@ -64,7 +72,7 @@ export default function AdminPlanos() {
 
   return (
     <>
-      <h1>💼 Planos</h1>
+      <h1>Planos</h1>
 
       <form className="card" style={{ maxWidth: 620, marginBottom: '1.25rem' }} onSubmit={criar}>
         <div className="grid grid-2">

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, desembrulhar, mensagemDeErro } from '../../api';
+import { useConfirm } from '../../components/ConfirmProvider';
 
 interface Empresa {
   id: string;
@@ -36,6 +37,7 @@ export default function AdminClientes() {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [form, setForm] = useState({ ...FORM_VAZIO });
   const [salvando, setSalvando] = useState(false);
+  const { confirm } = useConfirm();
 
   const carregar = useCallback(() => {
     api
@@ -77,7 +79,13 @@ export default function AdminClientes() {
   }
 
   async function remover(emp: Empresa) {
-    if (!window.confirm(`Remover a empresa "${emp.razao_social}"? Esta ação não pode ser desfeita.`)) return;
+    const ok = await confirm({
+      titulo: 'Remover empresa',
+      mensagem: `Remover a empresa "${emp.razao_social}"? Esta ação não pode ser desfeita.`,
+      confirmar: 'Remover',
+      perigo: true,
+    });
+    if (!ok) return;
     setErro('');
     try {
       await api.delete(`/empresas/${emp.id}`);
@@ -100,7 +108,7 @@ export default function AdminClientes() {
   return (
     <>
       <h1>
-        🏢 Clientes & Empresas
+        Clientes &amp; Empresas
         <button
           className="btn"
           style={{ float: 'right', fontSize: '0.85rem' }}

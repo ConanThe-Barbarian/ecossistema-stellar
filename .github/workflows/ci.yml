@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend — typecheck + testes
+    runs-on: ubuntu-latest
+    env:
+      # Valores fictícios só para o Prisma gerar o client e os testes rodarem
+      # (os testes usam mocks; não há conexão real com o banco).
+      DATABASE_URL: "sqlserver://localhost:1433;database=ci;user=ci;password=ci;encrypt=true;trustServerCertificate=true"
+      JWT_SECRET: "ci-dummy-secret"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Instalar dependências
+        run: npm install --no-audit --no-fund
+      - name: Gerar Prisma Client
+        run: npx prisma generate
+      - name: Typecheck (backend)
+        run: npx tsc --noEmit -p tsconfig.build.json
+      - name: Testes (Jest)
+        run: npm test
+
+  portal:
+    name: Portal — typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: portal
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Instalar dependências
+        run: npm install --no-audit --no-fund
+      - name: Typecheck (portal)
+        run: npx tsc --noEmit -p tsconfig.json

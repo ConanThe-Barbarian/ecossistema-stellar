@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, desembrulhar, mensagemDeErro } from '../../api';
+import { useConfirm } from '../../components/ConfirmProvider';
 
 interface Card {
   id: string;
@@ -44,6 +45,7 @@ export default function AdminKanban() {
   const [colunas, setColunas] = useState<Coluna[]>([]);
   const [erro, setErro] = useState('');
   const [arrastando, setArrastando] = useState<string | null>(null);
+  const { prompt } = useConfirm();
 
   const carregar = useCallback(() => {
     api
@@ -81,7 +83,13 @@ export default function AdminKanban() {
   }
 
   async function apontar(cardId: string) {
-    const entrada = window.prompt('Quantos minutos apontar neste chamado?');
+    const entrada = await prompt({
+      titulo: 'Apontar horas',
+      mensagem: 'Quantos minutos apontar neste chamado?',
+      tipo: 'number',
+      placeholder: 'Ex.: 30',
+      confirmar: 'Apontar',
+    });
     if (!entrada) return;
     const minutos = parseInt(entrada, 10);
     if (!minutos || minutos <= 0) return;
@@ -95,7 +103,7 @@ export default function AdminKanban() {
 
   return (
     <>
-      <h1>🗂️ Kanban dos Técnicos</h1>
+      <h1>Kanban dos Técnicos</h1>
       {erro && <div className="erro">{erro}</div>}
       <p className="muted" style={{ marginBottom: '1rem' }}>
         Arraste os cartões entre as colunas para mudar o status. Clique em ⏱️ para apontar horas.

@@ -65,7 +65,7 @@ export default function Conta() {
 
   return (
     <>
-      <h1>🔒 Minha Conta</h1>
+      <h1>Minha Conta</h1>
 
       <div className="card" style={{ maxWidth: 560 }}>
         <div style={{ marginBottom: 12 }}>

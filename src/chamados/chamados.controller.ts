@@ -25,13 +25,9 @@ export class ChamadosController {
 
   @RequirePermission('can_open_internal_ticket')
   @Post()
-  async abrirChamado(
-    @Body() body: CreateChamadoDto,
-    @CurrentUser('userId') usuarioId: string,
-    @CurrentUser('empresa_id') empresaId: string,
-  ) {
-    const chamado = await this.chamadosService.criarChamado(body, usuarioId, empresaId);
-    return { message: 'Chamado aberto com sucesso na Stellar Syntec!', ticket: chamado };
+  async abrirChamado(@Body() body: CreateChamadoDto, @CurrentUser() usuarioLogado: any) {
+    const chamado = await this.chamadosService.criarChamado(body, usuarioLogado);
+    return { message: 'Chamado aberto com sucesso!', ticket: chamado };
   }
 
   @UseGuards(AuthGuard('jwt'))

@@ -108,7 +108,7 @@ export default function AdminDre() {
   return (
     <>
       <h1>
-        💰 DRE & Rateio
+        Margem &amp; Rentabilidade
         <input
           type="month"
           value={mes}

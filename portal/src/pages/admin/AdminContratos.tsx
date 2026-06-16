@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, desembrulhar, mensagemDeErro } from '../../api';
+import { useConfirm } from '../../components/ConfirmProvider';
 
 interface Contrato {
   id: string;
@@ -23,6 +24,7 @@ export default function AdminContratos() {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [form, setForm] = useState({ ...FORM_VAZIO });
   const [salvando, setSalvando] = useState(false);
+  const { confirm } = useConfirm();
 
   const carregar = useCallback(() => {
     api
@@ -68,7 +70,14 @@ export default function AdminContratos() {
   }
 
   async function cancelar(c: Contrato) {
-    if (!window.confirm(`Cancelar o contrato de "${c.empresas?.razao_social ?? c.id}"?`)) return;
+    const ok = await confirm({
+      titulo: 'Cancelar contrato',
+      mensagem: `Cancelar o contrato de "${c.empresas?.razao_social ?? c.id}"?`,
+      confirmar: 'Cancelar contrato',
+      cancelar: 'Voltar',
+      perigo: true,
+    });
+    if (!ok) return;
     try {
       await api.delete(`/financeiro/contratos/${c.id}`);
       carregar();
@@ -83,7 +92,7 @@ export default function AdminContratos() {
   return (
     <>
       <h1>
-        📑 Contratos
+        Contratos
         <button className="btn" style={{ float: 'right', fontSize: '0.85rem' }} onClick={() => setMostrarForm((v) => !v)}>
           {mostrarForm ? 'Fechar' : '+ Novo contrato'}
         </button>

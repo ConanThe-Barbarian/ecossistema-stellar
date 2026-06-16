@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, desembrulhar, mensagemDeErro } from '../../api';
+import { useConfirm } from '../../components/ConfirmProvider';
 
 interface Usuario {
   id: string;
@@ -21,6 +22,7 @@ export default function AdminUsuarios() {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [form, setForm] = useState({ ...FORM_VAZIO });
   const [salvando, setSalvando] = useState(false);
+  const { confirm } = useConfirm();
 
   const carregar = useCallback(() => {
     api
@@ -64,7 +66,13 @@ export default function AdminUsuarios() {
   }
 
   async function remover(u: Usuario) {
-    if (!window.confirm(`Remover o usuário "${u.nome}" (${u.email})?`)) return;
+    const ok = await confirm({
+      titulo: 'Remover usuário',
+      mensagem: `Remover o usuário "${u.nome}" (${u.email})?`,
+      confirmar: 'Remover',
+      perigo: true,
+    });
+    if (!ok) return;
     try {
       await api.delete(`/usuarios/${u.id}`);
       carregar();
@@ -79,7 +87,7 @@ export default function AdminUsuarios() {
   return (
     <>
       <h1>
-        👥 Usuários
+        Usuários
         <button className="btn" style={{ float: 'right', fontSize: '0.85rem' }} onClick={() => setMostrarForm((v) => !v)}>
           {mostrarForm ? 'Fechar' : '+ Novo usuário'}
         </button>

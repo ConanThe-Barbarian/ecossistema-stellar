@@ -70,7 +70,7 @@ export default function Faturas() {
       <h1>
         Financeiro{' '}
         <button className="btn" style={{ float: 'right', fontSize: '0.85rem' }} onClick={gerarRelatorio} disabled={gerando}>
-          {gerando ? 'Gerando PDF…' : '📄 Relatório Mensal'}
+          {gerando ? 'Gerando PDF…' : 'Relatório Mensal'}
         </button>
       </h1>
       <div className="card">

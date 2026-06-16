@@ -13,6 +13,7 @@ export default function NovoChamado() {
   const tipo = params.get('tipo');
   const preset = tipo ? TIPOS[tipo] : null;
 
+  const [destino, setDestino] = useState<'STELLAR' | 'INTERNO'>('STELLAR');
   const [titulo, setTitulo] = useState(preset?.titulo ?? '');
   const [descricao, setDescricao] = useState('');
   const [categoria, setCategoria] = useState(preset?.categoria ?? 'SUPORTE');
@@ -24,9 +25,13 @@ export default function NovoChamado() {
     e.preventDefault();
     setErro('');
 
-    const empresaResponsavelId = localStorage.getItem('stellar_empresa_responsavel');
+    const empresaResponsavelId =
+      destino === 'STELLAR'
+        ? localStorage.getItem('stellar_empresa_responsavel')
+        : localStorage.getItem('stellar_empresa_id');
+
     if (!empresaResponsavelId) {
-      setErro('Visite a página Início uma vez antes de abrir chamados (carrega os dados da Stellar).');
+      setErro('Visite a página Início uma vez antes de abrir chamados (carrega os dados da empresa).');
       return;
     }
 
@@ -51,6 +56,12 @@ export default function NovoChamado() {
     <>
       <h1>Novo Chamado</h1>
       <form className="card" style={{ maxWidth: 640 }} onSubmit={enviar}>
+        <label htmlFor="destino">Destino do chamado</label>
+        <select id="destino" value={destino} onChange={(e) => setDestino(e.target.value as 'STELLAR' | 'INTERNO')}>
+          <option value="STELLAR">Para a Stellar (nossa equipe de suporte)</option>
+          <option value="INTERNO">Interno (resolver dentro da sua empresa)</option>
+        </select>
+
         <label htmlFor="titulo">Título</label>
         <input id="titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} required />
 
@@ -80,9 +91,9 @@ export default function NovoChamado() {
           <option value="URGENTE">Urgente</option>
         </select>
 
-        {categoria === 'SERVICO_FISICO' && (
+        {destino === 'STELLAR' && categoria === 'SERVICO_FISICO' && (
           <p className="muted mt">
-            ⚠️ Visitas presenciais geram faturamento adicional conforme seu contrato.
+            Atenção: visitas presenciais geram faturamento adicional conforme seu contrato.
           </p>
         )}
 
