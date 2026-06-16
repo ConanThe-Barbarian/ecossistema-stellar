@@ -44,6 +44,8 @@ export default function ChamadoDetalhe() {
   const [enviando, setEnviando] = useState(false);
   const [iaCarregando, setIaCarregando] = useState('');
   const [iaResultado, setIaResultado] = useState<{ tipo: string; texto: string } | null>(null);
+  const [notaInterna, setNotaInterna] = useState(false);
+  const [colegas, setColegas] = useState<string[]>([]);
   const eu = usuarioLogado();
 
   async function rodarIa(tipo: 'resumo' | 'sentimento' | 'sugestao') {
@@ -76,6 +78,22 @@ export default function ChamadoDetalhe() {
     return () => clearInterval(t);
   }, [carregar]);
 
+  // Colegas da Stellar para @menção em notas internas (só para usuários Stellar)
+  useEffect(() => {
+    if (!ehFundador()) return;
+    api
+      .get('/usuarios')
+      .then(({ data }) => {
+        const lista = desembrulhar<any[]>(data) ?? [];
+        setColegas(
+          lista
+            .filter((u) => u.empresas?.razao_social === eu?.empresa && u.nome !== eu?.nome)
+            .map((u) => u.nome),
+        );
+      })
+      .catch(() => {});
+  }, []);
+
   async function abrirAnexo(nome: string) {
     try {
       const resp = await api.get(`/chamados/anexo/${nome}`, { responseType: 'blob' });
@@ -92,8 +110,9 @@ export default function ChamadoDetalhe() {
     setEnviando(true);
     setErro('');
     try {
-      await api.post(`/chamados/${id}/interacoes`, { mensagem });
+      await api.post(`/chamados/${id}/interacoes`, { mensagem, is_nota_interna: notaInterna });
       setMensagem('');
+      setNotaInterna(false);
       carregar();
     } catch (err) {
       setErro(mensagemDeErro(err, 'Erro ao enviar a mensagem'));
@@ -235,17 +254,45 @@ export default function ChamadoDetalhe() {
         })}
 
         <form onSubmit={enviar}>
-          <label htmlFor="mensagem">Responder</label>
+          {ehFundador() && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 4 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  style={{ width: 'auto' }}
+                  checked={notaInterna}
+                  onChange={(e) => setNotaInterna(e.target.checked)}
+                />
+                Nota interna (visível só para a Stellar)
+              </label>
+              {notaInterna && colegas.length > 0 && (
+                <select
+                  value=""
+                  onChange={(e) => {
+                    if (e.target.value) setMensagem((m) => `${m}@${e.target.value} `);
+                  }}
+                  style={{ width: 'auto' }}
+                >
+                  <option value="">@ marcar colega…</option>
+                  {colegas.map((nome) => (
+                    <option key={nome} value={nome}>{nome}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
+          <label htmlFor="mensagem">{notaInterna ? 'Nota interna' : 'Responder'}</label>
           <textarea
             id="mensagem"
             rows={3}
             value={mensagem}
             onChange={(e) => setMensagem(e.target.value)}
-            placeholder="Escreva sua mensagem para a equipe…"
+            placeholder={notaInterna ? 'Anotação interna da equipe Stellar…' : 'Escreva sua mensagem para a equipe…'}
+            style={notaInterna ? { borderColor: 'var(--warn)', background: 'rgba(251,191,36,0.06)' } : undefined}
           />
           {erro && <div className="erro">{erro}</div>}
           <button className="btn mt" type="submit" disabled={enviando || !mensagem.trim()}>
-            {enviando ? 'Enviando…' : 'Enviar mensagem'}
+            {enviando ? 'Enviando…' : notaInterna ? 'Salvar nota interna' : 'Enviar mensagem'}
           </button>
         </form>
       </div>

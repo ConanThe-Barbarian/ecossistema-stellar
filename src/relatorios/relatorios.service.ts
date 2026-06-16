@@ -152,10 +152,85 @@ async exportarPdfSla(dados: any) {
 
   await browser.close();
 
-  return { 
-    message: "PDF Gerado com sucesso e blindado via UUID!", 
+  return {
+    message: "PDF Gerado com sucesso e blindado via UUID!",
     nome_arquivo: nomeArquivo,
-    url_acesso: `/uploads/relatorios/${nomeArquivo}` 
+    url_acesso: `/uploads/relatorios/${nomeArquivo}`
   };
 }
+
+  // Resumo gerencial consolidando TODOS os clientes no mês (mes no formato 'YYYY-MM').
+  async resumoClientes(mes: string) {
+    const [ano, m] = mes.split('-').map(Number);
+    const inicio = new Date(ano, m - 1, 1);
+    const fim = new Date(ano, m, 1);
+    const agora = new Date();
+
+    const empresas = await this.prisma.empresas.findMany({
+      where: { tipo_empresa: 'CLIENTE', deleted_at: null },
+      select: { id: true, razao_social: true },
+      orderBy: { razao_social: 'asc' },
+    });
+
+    const clientes: any[] = [];
+    const totais = { clientes: empresas.length, faturado: 0, recebido: 0, em_aberto: 0, chamados: 0, inadimplentes: 0 };
+
+    for (const emp of empresas) {
+      const [contrato, faturas, chamados] = await Promise.all([
+        this.prisma.contratos.findFirst({
+          where: { empresa_id: emp.id, status: 'ATIVO' },
+          include: { planos: { select: { nome: true } } },
+        }),
+        this.prisma.faturas.findMany({
+          where: { empresa_id: emp.id, data_vencimento: { gte: inicio, lt: fim } },
+          select: { valor: true, status: true, data_vencimento: true },
+        }),
+        this.prisma.chamados.findMany({
+          where: { empresa_origem_id: emp.id, created_at: { gte: inicio, lt: fim } },
+          select: { status: true },
+        }),
+      ]);
+
+      let faturado = 0;
+      let recebido = 0;
+      let emAberto = 0;
+      let vencidas = 0;
+      for (const f of faturas) {
+        const v = Number(f.valor);
+        faturado += v;
+        if (f.status === 'PAGO' || f.status === 'RECEBIDO') {
+          recebido += v;
+        } else {
+          emAberto += v;
+          if (new Date(f.data_vencimento) < agora) vencidas++;
+        }
+      }
+
+      const chamadosResolvidos = chamados.filter((c) =>
+        ['RESOLVIDO', 'FECHADO'].includes(c.status),
+      ).length;
+      const situacao = vencidas > 0 ? 'EM_DEBITO' : 'EM_DIA';
+
+      totais.faturado += faturado;
+      totais.recebido += recebido;
+      totais.em_aberto += emAberto;
+      totais.chamados += chamados.length;
+      if (situacao === 'EM_DEBITO') totais.inadimplentes++;
+
+      clientes.push({
+        empresa_id: emp.id,
+        empresa: emp.razao_social,
+        plano: contrato?.planos?.nome ?? null,
+        mensalidade: contrato ? Number(contrato.valor_mensalidade) : 0,
+        faturado,
+        recebido,
+        em_aberto: emAberto,
+        situacao,
+        chamados_total: chamados.length,
+        chamados_resolvidos: chamadosResolvidos,
+      });
+    }
+
+    return { mes, totais, clientes };
+  }
 }

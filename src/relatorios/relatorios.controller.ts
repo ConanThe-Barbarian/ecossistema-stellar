@@ -27,6 +27,15 @@ export class RelatoriosController {
     return this.relatoriosService.gerarRelatorioCompleto(mesNum, anoNum, empresaAlvo);
   }
 
+  // ROTA 1.5: Resumo consolidado de TODOS os clientes (gestão)
+  @Get('resumo-clientes')
+  async resumoClientes(@CurrentUser() usuario: any, @Query('mes') mes: string) {
+    if (!this.isAdmin(usuario)) {
+      throw new UnauthorizedException('Apenas gestores podem ver o resumo de clientes.');
+    }
+    return this.relatoriosService.resumoClientes(mes || new Date().toISOString().slice(0, 7));
+  }
+
   // ROTA 2: Exportar PDF (Visão Global - APENAS ADMINS)
   @Get('exportar/gestao')
   async exportarPdfGestao(

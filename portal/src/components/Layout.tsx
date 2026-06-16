@@ -13,6 +13,7 @@ import {
   Briefcase,
   Users,
   KanbanSquare,
+  ClipboardList,
 } from 'lucide-react';
 import { usuarioLogado, ehFundador } from '../api';
 import NotificationBell from './NotificationBell';
@@ -66,6 +67,9 @@ export default function Layout() {
             </div>
             <NavLink to="/admin" end className={linkClass}>
               <LayoutDashboard size={ICON} /> Dashboard
+            </NavLink>
+            <NavLink to="/admin/resumo-clientes" className={linkClass}>
+              <ClipboardList size={ICON} /> Resumo de Clientes
             </NavLink>
             <NavLink to="/admin/dre" className={linkClass}>
               <DollarSign size={ICON} /> Margem &amp; Rentabilidade
