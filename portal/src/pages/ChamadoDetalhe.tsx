@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { Paperclip } from 'lucide-react';
 import { api, desembrulhar, mensagemDeErro, usuarioLogado, ehFundador } from '../api';
 
 interface Interacao {
@@ -230,7 +231,7 @@ export default function ChamadoDetalhe() {
             >
               <div className="muted" style={{ fontSize: '0.78rem', marginBottom: 4 }}>
                 <strong>{i.usuarios?.nome}</strong>
-                {i.is_nota_interna && ' · 🔒 nota interna'} ·{' '}
+                {i.is_nota_interna && ' · nota interna'} ·{' '}
                 {new Date(i.created_at).toLocaleString('pt-BR')}
               </div>
               <div style={{ whiteSpace: 'pre-wrap' }}>{i.mensagem}</div>
@@ -244,7 +245,7 @@ export default function ChamadoDetalhe() {
                       className="btn btn-ghost"
                       style={{ fontSize: 12, padding: '4px 10px' }}
                     >
-                      📎 {a.nome_arquivo}
+                      <Paperclip size={12} /> {a.nome_arquivo}
                     </button>
                   ))}
                 </div>

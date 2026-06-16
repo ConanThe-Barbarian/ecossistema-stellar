@@ -1,3 +1,5 @@
+// uuid é ESM-only e o jest não o transpila; como o teste não usa PDF, mockamos.
+jest.mock('uuid', () => ({ v4: () => 'test-uuid' }));
 import { RelatoriosService } from './relatorios.service';
 
 describe('RelatoriosService — resumoClientes', () => {

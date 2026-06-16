@@ -80,7 +80,7 @@ export default function AdminConsumo() {
   return (
     <>
       <h1>
-        ⚡ Consumo Variável
+        Consumo Variável
         <input
           type="month"
           value={mes}

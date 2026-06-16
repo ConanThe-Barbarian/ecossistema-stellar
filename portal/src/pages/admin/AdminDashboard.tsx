@@ -61,7 +61,7 @@ export default function AdminDashboard() {
   return (
     <>
       <h1>
-        🗼 Torre de Controle
+        Torre de Controle
         <input
           type="month"
           value={mes}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, desembrulhar, mensagemDeErro } from '../../api';
 import { useConfirm } from '../../components/ConfirmProvider';
+import { AlertTriangle } from 'lucide-react';
 
 interface Card {
   id: string;
@@ -150,7 +151,11 @@ export default function AdminKanban() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, fontSize: 12 }}>
                   <span className="muted">{card.tecnico ?? 'Sem técnico'}</span>
                   <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    {card.sla_violado && <span title="SLA violado">🚨</span>}
+                    {card.sla_violado && (
+                      <span title="SLA violado" style={{ color: 'var(--danger)', display: 'inline-flex' }}>
+                        <AlertTriangle size={14} />
+                      </span>
+                    )}
                     <span className="muted">{formatarHoras(card.tempo_gasto_minutos)}</span>
                     <button
                       onClick={() => apontar(card.id)}

@@ -44,10 +44,8 @@ export default function Ferramentas() {
         {ferramentas.map((f) => (
           <div className="card" key={f.servico_id}>
             <h3>
-              {f.icone_url ? (
+              {f.icone_url && (
                 <img src={f.icone_url} alt="" style={{ height: 20, verticalAlign: 'middle', marginRight: 8 }} />
-              ) : (
-                '🛰️ '
               )}
               {f.nome}
             </h3>
