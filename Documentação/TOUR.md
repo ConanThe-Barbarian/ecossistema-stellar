@@ -120,7 +120,6 @@ Legenda de dependências externas:
 - **WhatsApp (Evolution):** conectar a instância `Stellar_Syntec` para as mensagens saírem (hoje o sistema funciona e só loga a falha).
 - **n8n:** preencher `N8N_WEBHOOK_URL` real (disparos de eventos).
 - **IA (Vertex):** preencher credenciais Google para ativar resumo/sentimento/sugestão nos chamados.
-- **Upload de anexo pela tela do chat** (backend já pronto).
 - **Emojis nos logs do backend** (cosmético, console dev — opcional).
 - **Go-live Asaas produção:** ver `RUNBOOK-GOLIVE-ASAAS.md`.
 - **Observabilidade** (Sentry/health-check) e ampliação de testes (SLA/DRE/portal e2e).
