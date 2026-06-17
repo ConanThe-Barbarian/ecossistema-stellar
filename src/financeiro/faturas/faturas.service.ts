@@ -1,10 +1,11 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
 import { comRetentativas } from '../../common/retry.util';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AsaasService } from '../asaas/asaas.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { EmailService } from '../../notifications/email.service';
+import { AcessoService } from '../acesso/acesso.service';
 
 @Injectable()
 export class FaturasService {
@@ -15,6 +16,7 @@ export class FaturasService {
     private notifications: NotificationsService,
     private email: EmailService,
     private asaas: AsaasService,
+    private acesso: AcessoService,
   ) {}
 
   async gerarPrimeiraFatura(contratoId: string) {
@@ -87,6 +89,94 @@ export class FaturasService {
     }
 
     return { message: 'Fatura gerada e blindada com o Asaas!', fatura: faturaAtualizada };
+  }
+
+  // Gera (ou reaproveita) a cobrança Asaas de uma fatura JÁ existente — para
+  // faturas pendentes que ainda não têm link de pagamento (ex.: dados antigos).
+  // Retorna o url_fatura para o cliente pagar (boleto/PIX/cartão).
+  async gerarCobranca(faturaId: string, usuarioLogado: any) {
+    const fatura = await this.prisma.faturas.findUnique({
+      where: { id: faturaId },
+      include: { empresas: true },
+    });
+    if (!fatura) throw new NotFoundException('Fatura não encontrada.');
+
+    // IDOR: cliente só pode gerar/pagar cobrança da própria empresa
+    const ehDaEmpresa = fatura.empresa_id === usuarioLogado.empresa_id;
+    const ehGestor = usuarioLogado?.permissoes?.can_generate_invoices === true;
+    if (!ehDaEmpresa && !ehGestor) {
+      throw new ForbiddenException('Você não pode acessar a cobrança de outra empresa.');
+    }
+
+    if (fatura.status === 'PAGO') {
+      throw new BadRequestException('Esta fatura já foi paga.');
+    }
+    // Já tem link: só devolve
+    if (fatura.url_fatura) {
+      return { url_fatura: fatura.url_fatura, asaas_payment_id: fatura.asaas_payment_id };
+    }
+
+    const clienteAsaas = await this.asaas.criarCliente({
+      nome: fatura.empresas.razao_social,
+      cnpjCpf: fatura.empresas.cnpj_cpf,
+      email: fatura.empresas.email_financeiro || undefined,
+    });
+
+    // Vencida? gera com vencimento de hoje (Asaas não aceita data no passado)
+    const hoje = new Date();
+    const venc = new Date(fatura.data_vencimento);
+    const dueDate = (venc < hoje ? hoje : venc).toISOString().substring(0, 10);
+
+    const asaasFatura = await this.asaas.gerarFatura({
+      customer: clienteAsaas.id,
+      value: Number(fatura.valor),
+      dueDate: dueDate,
+      externalReference: fatura.id,
+      description: 'Mensalidade Stellar Syntec - Serviços de Inteligência TI',
+    });
+
+    const atualizada = await this.prisma.faturas.update({
+      where: { id: fatura.id },
+      data: { asaas_payment_id: asaasFatura.id, url_fatura: asaasFatura.invoiceUrl },
+    });
+
+    return { url_fatura: atualizada.url_fatura, asaas_payment_id: atualizada.asaas_payment_id };
+  }
+
+  // Reconciliação: consulta o Asaas e atualiza a fatura se já estiver paga.
+  // Rede de segurança para quando o webhook não chega (ngrok fora, fila pausada, etc.).
+  async sincronizarPagamento(faturaId: string, usuarioLogado: any) {
+    const fatura = await this.prisma.faturas.findUnique({ where: { id: faturaId } });
+    if (!fatura) throw new NotFoundException('Fatura não encontrada.');
+
+    const ehDaEmpresa = fatura.empresa_id === usuarioLogado.empresa_id;
+    const ehGestor = usuarioLogado?.permissoes?.can_generate_invoices === true;
+    if (!ehDaEmpresa && !ehGestor) {
+      throw new ForbiddenException('Você não pode acessar esta fatura.');
+    }
+
+    if (fatura.status === 'PAGO') return { status: 'PAGO', pago: true };
+    if (!fatura.asaas_payment_id) {
+      return { status: fatura.status, pago: false, message: 'Esta fatura ainda não tem cobrança gerada.' };
+    }
+
+    const cobranca = await this.asaas.consultarPagamento(fatura.asaas_payment_id);
+    const statusAsaas = cobranca?.status;
+    const pago = ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'].includes(statusAsaas);
+
+    if (pago) {
+      await this.prisma.faturas.update({
+        where: { id: fatura.id },
+        data: { status: 'PAGO', data_pagamento: new Date() },
+      });
+      const liberadas = await this.acesso.liberarAcessoEmpresa(fatura.empresa_id);
+      this.logger.log(
+        `Fatura ${fatura.id} reconciliada como PAGA; ${liberadas} ferramenta(s) liberada(s).`,
+      );
+      return { status: 'PAGO', pago: true, ferramentas_liberadas: liberadas };
+    }
+
+    return { status: statusAsaas ?? fatura.status, pago: false };
   }
 
   @Cron(CronExpression.EVERY_DAY_AT_9AM)

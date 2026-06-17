@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api, desembrulhar, mensagemDeErro } from '../api';
 
 interface Fatura {
@@ -26,6 +26,8 @@ export default function Faturas() {
   const [faturas, setFaturas] = useState<Fatura[] | null>(null);
   const [erro, setErro] = useState('');
   const [gerando, setGerando] = useState(false);
+  const [pagandoId, setPagandoId] = useState<string | null>(null);
+  const [verificandoId, setVerificandoId] = useState<string | null>(null);
 
   async function gerarRelatorio() {
     const empresaId = localStorage.getItem('stellar_empresa_id');
@@ -55,12 +57,53 @@ export default function Faturas() {
     }
   }
 
-  useEffect(() => {
+  const carregar = useCallback(() => {
     api
       .get('/portal/faturas')
       .then(({ data }) => setFaturas(desembrulhar<Fatura[]>(data) ?? []))
       .catch((err) => setErro(mensagemDeErro(err, 'Não foi possível carregar suas faturas')));
   }, []);
+
+  useEffect(() => {
+    carregar();
+  }, [carregar]);
+
+  async function pagar(f: Fatura) {
+    setErro('');
+    try {
+      let url = f.url_fatura;
+      if (!url) {
+        setPagandoId(f.id);
+        const { data } = await api.post(`/financeiro/faturas/${f.id}/cobranca`);
+        url = (desembrulhar<any>(data)?.url_fatura ?? data?.url_fatura) || null;
+        carregar();
+      }
+      if (url) window.open(url, '_blank');
+      else setErro('Não foi possível obter o link de pagamento.');
+    } catch (err) {
+      setErro(mensagemDeErro(err, 'Erro ao gerar a cobrança'));
+    } finally {
+      setPagandoId(null);
+    }
+  }
+
+  async function verificar(f: Fatura) {
+    setErro('');
+    setVerificandoId(f.id);
+    try {
+      const { data } = await api.post(`/financeiro/faturas/${f.id}/verificar-pagamento`);
+      const r: any = desembrulhar<any>(data) ?? data;
+      if (r?.pago) {
+        carregar();
+      } else {
+        setErro(r?.message || `Pagamento ainda não confirmado (status: ${r?.status ?? 'pendente'}).`);
+      }
+    } catch (err) {
+      setErro(mensagemDeErro(err, 'Erro ao verificar o pagamento'));
+    } finally {
+      setVerificandoId(null);
+    }
+  }
 
   if (erro) return <div className="erro">{erro}</div>;
   if (!faturas) return <p className="muted">Carregando…</p>;
@@ -100,10 +143,27 @@ export default function Faturas() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                      {f.url_fatura && (
-                        <a className="btn btn-ghost" href={f.url_fatura} target="_blank" rel="noreferrer" style={{ fontSize: 12, padding: '4px 10px' }}>
-                          Boleto / PIX
-                        </a>
+                      {f.status !== 'PAGO' && f.status !== 'RECEBIDO' && (
+                        <button
+                          type="button"
+                          className="btn"
+                          style={{ fontSize: 12, padding: '4px 10px' }}
+                          disabled={pagandoId === f.id}
+                          onClick={() => pagar(f)}
+                        >
+                          {pagandoId === f.id ? 'Gerando…' : f.url_fatura ? 'Pagar (Boleto/PIX)' : 'Gerar pagamento'}
+                        </button>
+                      )}
+                      {f.status !== 'PAGO' && f.status !== 'RECEBIDO' && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          style={{ fontSize: 12, padding: '4px 10px' }}
+                          disabled={verificandoId === f.id}
+                          onClick={() => verificar(f)}
+                        >
+                          {verificandoId === f.id ? 'Verificando…' : 'Verificar pagamento'}
+                        </button>
                       )}
                       {f.linha_digitavel && (
                         <button

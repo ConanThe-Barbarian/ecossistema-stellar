@@ -31,7 +31,8 @@ describe('FaturasService — e-mail de fatura gerada', () => {
       criarCliente: jest.fn(async () => ({ id: 'cli1' })),
       gerarFatura: jest.fn(async () => ({ id: 'pay1', invoiceUrl: 'https://asaas/f1' })),
     };
-    return { svc: new FaturasService(prisma, notifications, email, asaas), notifications, email };
+    const acesso: any = { liberarAcessoEmpresa: jest.fn(async () => 0) };
+    return { svc: new FaturasService(prisma, notifications, email, asaas, acesso), notifications, email };
   }
 
   it('com email_financeiro: dispara WhatsApp e e-mail de fatura', async () => {

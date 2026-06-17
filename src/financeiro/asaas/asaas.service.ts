@@ -87,4 +87,14 @@ export class AsaasService {
     return null;
   }
  }
+
+  // Consulta o status atual de uma cobrança no Asaas (reconciliação de pagamento).
+  // Retorna o objeto da cobrança (campo .status: PENDING/RECEIVED/CONFIRMED/OVERDUE/...).
+  async consultarPagamento(paymentId: string): Promise<any> {
+    const response = await axios.get(
+      `${process.env.ASAAS_API_URL}/payments/${paymentId}`,
+      { headers: { access_token: process.env.ASAAS_API_KEY || '' } },
+    );
+    return response.data;
+  }
 }

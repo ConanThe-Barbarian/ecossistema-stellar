@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Body, Param, Req, Res, UseGuards, ParseUUIDPipe, UseInterceptors, UploadedFile, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Param, Query, Req, Res, UseGuards, ParseUUIDPipe, UseInterceptors, UploadedFile, BadRequestException, NotFoundException } from '@nestjs/common';
 import type { Response } from 'express';
 import { join, basename } from 'path';
 import { existsSync, unlinkSync } from 'fs';
@@ -37,11 +37,16 @@ export class ChamadosController {
     return { message: 'Listagem de chamados recuperada.', total_encontrado: chamados.length, dados: chamados };
   }
 
-  // Kanban dos técnicos (declarado ANTES de :id para não ser capturado pelo param)
-  @RequirePermission('can_manage_users')
+  // Kanban INDIVIDUAL dos técnicos (declarado ANTES de :id para não ser capturado pelo param).
+  // Sem @RequirePermission: o board já é escopado ao próprio usuário no serviço.
+  // Admins podem inspecionar outro técnico via ?tecnico=<id> ou ?tecnico=todos.
+  @UseGuards(AuthGuard('jwt'))
   @Get('kanban')
-  async obterKanban(@CurrentUser() usuarioLogado: any) {
-    return this.chamadosService.obterKanban(usuarioLogado);
+  async obterKanban(
+    @CurrentUser() usuarioLogado: any,
+    @Query('tecnico') tecnico?: string,
+  ) {
+    return this.chamadosService.obterKanban(usuarioLogado, tecnico);
   }
 
   @UseGuards(AuthGuard('jwt'))

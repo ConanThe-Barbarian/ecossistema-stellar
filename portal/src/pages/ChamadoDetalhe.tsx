@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Paperclip } from 'lucide-react';
+import { Paperclip, MessageSquare, Lock, EyeOff, Sparkles, X } from 'lucide-react';
 import { api, desembrulhar, mensagemDeErro, usuarioLogado, ehFundador } from '../api';
 
 interface Interacao {
@@ -47,7 +47,14 @@ export default function ChamadoDetalhe() {
   const [iaResultado, setIaResultado] = useState<{ tipo: string; texto: string } | null>(null);
   const [notaInterna, setNotaInterna] = useState(false);
   const [colegas, setColegas] = useState<string[]>([]);
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const eu = usuarioLogado();
+
+  function limparArquivo() {
+    setArquivo(null);
+    if (fileRef.current) fileRef.current.value = '';
+  }
 
   async function rodarIa(tipo: 'resumo' | 'sentimento' | 'sugestao') {
     setIaCarregando(tipo);
@@ -107,13 +114,26 @@ export default function ChamadoDetalhe() {
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
-    if (!mensagem.trim()) return;
+    if (!mensagem.trim() && !arquivo) return;
     setEnviando(true);
     setErro('');
     try {
-      await api.post(`/chamados/${id}/interacoes`, { mensagem, is_nota_interna: notaInterna });
+      const texto = mensagem.trim() || (arquivo ? `Anexo: ${arquivo.name}` : '');
+      const { data } = await api.post(`/chamados/${id}/interacoes`, {
+        mensagem: texto,
+        is_nota_interna: notaInterna,
+      });
+      const interacao = desembrulhar<{ id: string }>(data);
+      if (arquivo && interacao?.id) {
+        const form = new FormData();
+        form.append('arquivo', arquivo);
+        await api.post(`/chamados/${id}/interacoes/${interacao.id}/anexos`, form, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      }
       setMensagem('');
       setNotaInterna(false);
+      limparArquivo();
       carregar();
     } catch (err) {
       setErro(mensagemDeErro(err, 'Erro ao enviar a mensagem'));
@@ -172,7 +192,7 @@ export default function ChamadoDetalhe() {
 
       {ehFundador() && (
         <div className="card mt">
-          <h3>🤖 Assistente IA</h3>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Sparkles size={18} /> Assistente IA</h3>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button className="btn" type="button" disabled={!!iaCarregando} onClick={() => rodarIa('resumo')}>
               {iaCarregando === 'resumo' ? '…' : 'Resumir'}
@@ -229,10 +249,12 @@ export default function ChamadoDetalhe() {
                 borderLeft: i.is_nota_interna ? '3px solid var(--warn)' : 'none',
               }}
             >
-              <div className="muted" style={{ fontSize: '0.78rem', marginBottom: 4 }}>
+              <div className="muted" style={{ fontSize: '0.78rem', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <strong>{i.usuarios?.nome}</strong>
-                {i.is_nota_interna && ' · nota interna'} ·{' '}
-                {new Date(i.created_at).toLocaleString('pt-BR')}
+                {i.is_nota_interna && (
+                  <span className="nota-badge"><Lock size={11} /> NOTA INTERNA</span>
+                )}
+                <span>· {new Date(i.created_at).toLocaleString('pt-BR')}</span>
               </div>
               <div style={{ whiteSpace: 'pre-wrap' }}>{i.mensagem}</div>
               {i.anexos && i.anexos.length > 0 && (
@@ -256,23 +278,35 @@ export default function ChamadoDetalhe() {
 
         <form onSubmit={enviar}>
           {ehFundador() && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 4 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0, cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  style={{ width: 'auto' }}
-                  checked={notaInterna}
-                  onChange={(e) => setNotaInterna(e.target.checked)}
-                />
-                Nota interna (visível só para a Stellar)
-              </label>
-              {notaInterna && colegas.length > 0 && (
+            <div className="composer-tabs">
+              <button
+                type="button"
+                className={`composer-tab${!notaInterna ? ' active' : ''}`}
+                onClick={() => setNotaInterna(false)}
+              >
+                <MessageSquare size={14} /> Responder ao cliente
+              </button>
+              <button
+                type="button"
+                className={`composer-tab nota${notaInterna ? ' active' : ''}`}
+                onClick={() => setNotaInterna(true)}
+              >
+                <Lock size={14} /> Nota interna
+              </button>
+            </div>
+          )}
+
+          {notaInterna && (
+            <div className="composer-hint">
+              <EyeOff size={13} />
+              <span>Visível apenas para a equipe Stellar — o cliente não vê.</span>
+              {colegas.length > 0 && (
                 <select
                   value=""
                   onChange={(e) => {
                     if (e.target.value) setMensagem((m) => `${m}@${e.target.value} `);
                   }}
-                  style={{ width: 'auto' }}
+                  style={{ width: 'auto', marginLeft: 'auto' }}
                 >
                   <option value="">@ marcar colega…</option>
                   {colegas.map((nome) => (
@@ -282,17 +316,55 @@ export default function ChamadoDetalhe() {
               )}
             </div>
           )}
-          <label htmlFor="mensagem">{notaInterna ? 'Nota interna' : 'Responder'}</label>
+
           <textarea
             id="mensagem"
+            className={notaInterna ? 'textarea-nota' : undefined}
             rows={3}
             value={mensagem}
             onChange={(e) => setMensagem(e.target.value)}
-            placeholder={notaInterna ? 'Anotação interna da equipe Stellar…' : 'Escreva sua mensagem para a equipe…'}
-            style={notaInterna ? { borderColor: 'var(--warn)', background: 'rgba(251,191,36,0.06)' } : undefined}
+            placeholder={
+              notaInterna
+                ? 'Anotação interna da equipe Stellar (não vai para o cliente)…'
+                : 'Escreva sua mensagem para a equipe…'
+            }
           />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
+            <input
+              ref={fileRef}
+              type="file"
+              style={{ display: 'none' }}
+              onChange={(e) => setArquivo(e.target.files?.[0] ?? null)}
+            />
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{ fontSize: 13, padding: '6px 12px' }}
+              onClick={() => fileRef.current?.click()}
+            >
+              <Paperclip size={14} /> Anexar arquivo
+            </button>
+            {arquivo && (
+              <span className="anexo-chip">
+                <Paperclip size={12} /> {arquivo.name}
+                <button
+                  type="button"
+                  onClick={limparArquivo}
+                  title="Remover anexo"
+                  style={{ background: 'transparent', border: 'none', color: 'inherit', cursor: 'pointer', display: 'inline-flex', padding: 0 }}
+                >
+                  <X size={13} />
+                </button>
+              </span>
+            )}
+          </div>
+
           {erro && <div className="erro">{erro}</div>}
-          <button className="btn mt" type="submit" disabled={enviando || !mensagem.trim()}>
+          <button
+            className={`btn mt${notaInterna ? ' btn-nota' : ''}`}
+            type="submit"
+            disabled={enviando || (!mensagem.trim() && !arquivo)}
+          >
             {enviando ? 'Enviando…' : notaInterna ? 'Salvar nota interna' : 'Enviar mensagem'}
           </button>
         </form>

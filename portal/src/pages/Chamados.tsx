@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api, desembrulhar, mensagemDeErro } from '../api';
+import { api, desembrulhar, mensagemDeErro, usuarioLogado, ehFundador } from '../api';
 
 interface Chamado {
   id: string;
@@ -10,7 +10,9 @@ interface Chamado {
   status: string;
   created_at: string;
   interno?: boolean;
+  tecnico_atribuido_id?: string | null;
   empresas_chamados_empresa_origem_idToempresas?: { razao_social: string } | null;
+  usuarios_chamados_tecnico_atribuido_idTousuarios?: { nome: string } | null;
 }
 
 function badgeStatus(status: string) {
@@ -29,6 +31,9 @@ export default function Chamados() {
   const [chamados, setChamados] = useState<Chamado[] | null>(null);
   const [erro, setErro] = useState('');
   const [filtroEmpresa, setFiltroEmpresa] = useState('');
+  const [aba, setAba] = useState<'GERAIS' | 'MEUS'>('GERAIS');
+  const eu = usuarioLogado();
+  const stellar = ehFundador();
 
   useEffect(() => {
     api
@@ -49,18 +54,43 @@ export default function Chamados() {
   if (erro) return <div className="erro">{erro}</div>;
   if (!chamados) return <p className="muted">Carregando…</p>;
 
-  const visiveis = filtroEmpresa
-    ? chamados.filter((c) => c.empresas_chamados_empresa_origem_idToempresas?.razao_social === filtroEmpresa)
-    : chamados;
+  let visiveis = chamados;
+  if (stellar && aba === 'MEUS') {
+    visiveis = visiveis.filter((c) => c.tecnico_atribuido_id === eu?.id);
+  }
+  if (filtroEmpresa) {
+    visiveis = visiveis.filter(
+      (c) => c.empresas_chamados_empresa_origem_idToempresas?.razao_social === filtroEmpresa,
+    );
+  }
 
   return (
     <>
       <h1>
-        Meus Chamados{' '}
+        {stellar ? 'Chamados' : 'Meus Chamados'}{' '}
         <Link to="/chamados/novo" className="btn" style={{ float: 'right', fontSize: '0.85rem' }}>
           + Novo chamado
         </Link>
       </h1>
+
+      {stellar && (
+        <div className="composer-tabs" style={{ marginBottom: '1rem' }}>
+          <button
+            type="button"
+            className={`composer-tab${aba === 'GERAIS' ? ' active' : ''}`}
+            onClick={() => setAba('GERAIS')}
+          >
+            Chamados Gerais
+          </button>
+          <button
+            type="button"
+            className={`composer-tab${aba === 'MEUS' ? ' active' : ''}`}
+            onClick={() => setAba('MEUS')}
+          >
+            Meus Chamados
+          </button>
+        </div>
+      )}
 
       {empresas.length > 1 && (
         <select
@@ -77,7 +107,11 @@ export default function Chamados() {
 
       <div className="card">
         {visiveis.length === 0 ? (
-          <p className="muted">Nenhum chamado por aqui. Tudo tranquilo na galáxia.</p>
+          <p className="muted">
+            {stellar && aba === 'MEUS'
+              ? 'Nenhum chamado atribuído a você.'
+              : 'Nenhum chamado por aqui. Tudo tranquilo na galáxia.'}
+          </p>
         ) : (
           <table>
             <thead>
@@ -85,6 +119,7 @@ export default function Chamados() {
                 <th>Título</th>
                 <th>Empresa</th>
                 <th>Tipo</th>
+                {stellar && <th>Técnico</th>}
                 <th>Prioridade</th>
                 <th>Status</th>
                 <th>Aberto em</th>
@@ -100,6 +135,11 @@ export default function Chamados() {
                       {c.interno ? 'Interno' : 'Stellar'}
                     </span>
                   </td>
+                  {stellar && (
+                    <td className="muted">
+                      {c.usuarios_chamados_tecnico_atribuido_idTousuarios?.nome ?? 'Não atribuído'}
+                    </td>
+                  )}
                   <td>{c.prioridade}</td>
                   <td>{badgeStatus(c.status)}</td>
                   <td>{new Date(c.created_at).toLocaleDateString('pt-BR')}</td>

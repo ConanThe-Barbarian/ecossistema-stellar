@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, desembrulhar, mensagemDeErro } from '../../api';
 import { useConfirm } from '../../components/ConfirmProvider';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Clock } from 'lucide-react';
 
 interface Card {
   id: string;
@@ -18,6 +18,12 @@ interface Card {
 interface Coluna {
   status: string;
   chamados: Card[];
+}
+interface KanbanResp {
+  colunas: Coluna[];
+  tecnicos?: { id: string; nome: string }[];
+  tecnico_selecionado?: string | null;
+  eh_admin?: boolean;
 }
 
 const TITULOS: Record<string, string> = {
@@ -44,20 +50,29 @@ function formatarHoras(min: number) {
 
 export default function AdminKanban() {
   const [colunas, setColunas] = useState<Coluna[]>([]);
+  const [tecnicos, setTecnicos] = useState<{ id: string; nome: string }[]>([]);
+  const [ehAdmin, setEhAdmin] = useState(false);
+  const [filtro, setFiltro] = useState('');
   const [erro, setErro] = useState('');
   const [arrastando, setArrastando] = useState<string | null>(null);
   const { prompt } = useConfirm();
 
-  const carregar = useCallback(() => {
+  const carregar = useCallback((tecnico: string) => {
+    const qs = tecnico ? `?tecnico=${encodeURIComponent(tecnico)}` : '';
     api
-      .get('/chamados/kanban')
-      .then(({ data }) => setColunas(desembrulhar<{ colunas: Coluna[] }>(data).colunas ?? []))
+      .get(`/chamados/kanban${qs}`)
+      .then(({ data }) => {
+        const r = desembrulhar<KanbanResp>(data);
+        setColunas(r.colunas ?? []);
+        setTecnicos(r.tecnicos ?? []);
+        setEhAdmin(!!r.eh_admin);
+      })
       .catch((err) => setErro(mensagemDeErro(err, 'Erro ao carregar o Kanban')));
   }, []);
 
   useEffect(() => {
-    carregar();
-  }, [carregar]);
+    carregar(filtro);
+  }, [carregar, filtro]);
 
   async function mover(cardId: string, novoStatus: string, statusAtual: string) {
     if (novoStatus === statusAtual) return;
@@ -79,7 +94,7 @@ export default function AdminKanban() {
       await api.patch(`/chamados/${cardId}`, { status: novoStatus });
     } catch (err) {
       setErro(mensagemDeErro(err, 'Erro ao mover o chamado'));
-      carregar(); // reverte para o estado real
+      carregar(filtro); // reverte para o estado real
     }
   }
 
@@ -96,7 +111,7 @@ export default function AdminKanban() {
     if (!minutos || minutos <= 0) return;
     try {
       await api.post(`/chamados/${cardId}/apontar-horas`, { minutos });
-      carregar();
+      carregar(filtro);
     } catch (err) {
       setErro(mensagemDeErro(err, 'Erro ao apontar horas'));
     }
@@ -104,10 +119,29 @@ export default function AdminKanban() {
 
   return (
     <>
-      <h1>Kanban dos Técnicos</h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <h1>Meu Kanban</h1>
+        {ehAdmin && tecnicos.length > 0 && (
+          <select
+            value={filtro}
+            onChange={(e) => setFiltro(e.target.value)}
+            style={{ maxWidth: 280 }}
+          >
+            <option value="">Meu board</option>
+            <option value="todos">Todos os chamados</option>
+            <optgroup label="Por técnico">
+              {tecnicos.map((t) => (
+                <option key={t.id} value={t.id}>{t.nome}</option>
+              ))}
+            </optgroup>
+          </select>
+        )}
+      </div>
+
       {erro && <div className="erro">{erro}</div>}
       <p className="muted" style={{ marginBottom: '1rem' }}>
-        Arraste os cartões entre as colunas para mudar o status. Clique em ⏱️ para apontar horas.
+        Seu board pessoal: apenas os chamados atribuídos a você. Arraste os cartões entre as
+        colunas para mudar o status. Use o relógio para apontar horas.
       </p>
 
       <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 12 }}>
@@ -160,9 +194,9 @@ export default function AdminKanban() {
                     <button
                       onClick={() => apontar(card.id)}
                       title="Apontar horas"
-                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14 }}
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--accent)', display: 'inline-flex', padding: 0 }}
                     >
-                      ⏱️
+                      <Clock size={15} />
                     </button>
                   </span>
                 </div>

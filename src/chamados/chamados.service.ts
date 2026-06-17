@@ -38,12 +38,31 @@ export class ChamadosService {
       throw new ForbiddenException('Apenas o administrador da empresa pode abrir chamados para a Stellar.');
     }
 
+    // Treinamento é um benefício limitado a 2 solicitações por mês por empresa.
+    if (dados.categoria === 'TREINAMENTO') {
+      const inicioMes = new Date();
+      inicioMes.setDate(1);
+      inicioMes.setHours(0, 0, 0, 0);
+      const treinosNoMes = await this.prisma.chamados.count({
+        where: {
+          empresa_origem_id: empresaId,
+          categoria: 'TREINAMENTO',
+          created_at: { gte: inicioMes },
+        },
+      });
+      if (treinosNoMes >= 2) {
+        throw new ForbiddenException(
+          'Limite de 2 solicitações de treinamento por mês atingido. Tente novamente no próximo mês.',
+        );
+      }
+    }
+
     const { dataLimiteResposta, dataLimiteSolucao } = await this.calcularPrazosSla(
       empresaId,
       dados.prioridade,
     );
 
-    return this.prisma.chamados.create({
+    const chamado = await this.prisma.chamados.create({
       data: {
         titulo: dados.titulo,
         descricao: dados.descricao,
@@ -57,6 +76,18 @@ export class ChamadosService {
         data_limite_solucao: dataLimiteSolucao,
       },
     });
+
+    // Chamado PARA a Stellar -> distribuição automática por carga entre os agentes.
+    // (best-effort: se não houver técnico, não bloqueia a abertura)
+    if (ehExterno) {
+      try {
+        await this.atribuirChamadoAutomaticamente(chamado.id);
+      } catch (e) {
+        console.error('Falha na atribuição automática:', e);
+      }
+    }
+
+    return chamado;
   }
 
 // 🛡️ MOTOR PRIVADO DE SLA (A Inteligência GTI da Stellar)
@@ -113,6 +144,7 @@ async listarChamados(usuarioLogado: any) {
       ],
       include: {
         usuarios_chamados_requerente_idTousuarios: { select: { nome: true } },
+        usuarios_chamados_tecnico_atribuido_idTousuarios: { select: { nome: true } },
         empresas_chamados_empresa_origem_idToempresas: { select: { razao_social: true } }
       }
     });
@@ -916,10 +948,18 @@ const chamadoAtualizado = await this.prisma.chamados.update({
   }
 
   // ── Kanban dos técnicos: chamados agrupados por status (colunas) ──
-  async obterKanban(usuarioLogado: any) {
-    const temVisaoGlobal =
+  async obterKanban(usuarioLogado: any, tecnicoFiltro?: string) {
+    const ehAdmin =
       usuarioLogado.perfil === 'Super Admin' || usuarioLogado.permissoes?.can_manage_users;
-    const filtro = temVisaoGlobal ? {} : { empresa_origem_id: usuarioLogado.empresa_id };
+
+    // Kanban INDIVIDUAL: por padrão cada agente vê só os chamados atribuídos a ele,
+    // para não se confundir com o board dos colegas.
+    // Um admin pode inspecionar outro técnico (?tecnico=<id>) ou ver todos (?tecnico=todos).
+    let alvoTecnico: string | null = usuarioLogado.id;
+    if (ehAdmin && tecnicoFiltro) {
+      alvoTecnico = tecnicoFiltro === 'todos' ? null : tecnicoFiltro;
+    }
+    const filtro = alvoTecnico ? { tecnico_atribuido_id: alvoTecnico } : {};
 
     const chamados = await this.prisma.chamados.findMany({
       where: filtro,
@@ -958,7 +998,20 @@ const chamadoAtualizado = await this.prisma.chamados.update({
       board[i === undefined ? 0 : i].chamados.push(card);
     }
 
-    return { colunas: board };
+    // Para admins: lista de técnicos da Stellar, para alternar entre os boards.
+    let tecnicos: { id: string; nome: string }[] = [];
+    if (ehAdmin) {
+      const stellarId = await this.getStellarId();
+      if (stellarId) {
+        tecnicos = await this.prisma.usuarios.findMany({
+          where: { empresa_id: stellarId },
+          select: { id: true, nome: true },
+          orderBy: { nome: 'asc' },
+        });
+      }
+    }
+
+    return { colunas: board, tecnicos, tecnico_selecionado: alvoTecnico, eh_admin: ehAdmin };
   }
 
   // Apontamento de horas: incrementa o tempo gasto (em minutos) no chamado.

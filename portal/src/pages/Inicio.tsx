@@ -10,6 +10,7 @@ interface Resumo {
   plano: { nome: string; valor_mensalidade: number; dia_vencimento: number } | null;
   situacao_pagamento: 'EM_DIA' | 'EM_DEBITO';
   proxima_fatura: {
+    id: string;
     valor: number;
     data_vencimento: string;
     url_fatura: string | null;
@@ -23,7 +24,27 @@ const brl = (v: number) =>
 export default function Inicio() {
   const [resumo, setResumo] = useState<Resumo | null>(null);
   const [erro, setErro] = useState('');
+  const [pagando, setPagando] = useState(false);
   const navigate = useNavigate();
+
+  async function pagar() {
+    const f = resumo?.proxima_fatura;
+    if (!f) return;
+    try {
+      let url = f.url_fatura;
+      if (!url) {
+        setPagando(true);
+        const { data } = await api.post(`/financeiro/faturas/${f.id}/cobranca`);
+        url = (desembrulhar<any>(data)?.url_fatura ?? data?.url_fatura) || null;
+      }
+      if (url) window.open(url, '_blank');
+      else navigate('/faturas');
+    } catch {
+      navigate('/faturas');
+    } finally {
+      setPagando(false);
+    }
+  }
 
   useEffect(() => {
     api
@@ -46,6 +67,30 @@ export default function Inicio() {
   return (
     <>
       <h1>Olá, {resumo.empresa.nome}</h1>
+
+      {resumo.situacao_pagamento === 'EM_DEBITO' && (
+        <div
+          className="card"
+          style={{
+            borderColor: 'var(--danger)',
+            background: 'rgba(248,113,113,0.08)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 16,
+            flexWrap: 'wrap',
+            marginBottom: '1.5rem',
+          }}
+        >
+          <div>
+            <strong style={{ color: 'var(--danger)' }}>Pagamento pendente</strong>
+            <div className="muted">Regularize para reativar o acesso às suas ferramentas.</div>
+          </div>
+          <button className="btn" onClick={pagar} disabled={pagando}>
+            {pagando ? 'Gerando…' : 'Pagar agora'}
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-3">
         <div className="card">
