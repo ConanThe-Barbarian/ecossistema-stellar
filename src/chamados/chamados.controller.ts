@@ -49,6 +49,25 @@ export class ChamadosController {
     return this.chamadosService.obterKanban(usuarioLogado, tecnico);
   }
 
+  // Solicitações de contratação (aba em Contratos). Antes de :id. Só Stellar.
+  @UseGuards(AuthGuard('jwt'))
+  @Get('solicitacoes')
+  async listarSolicitacoes(@CurrentUser() usuarioLogado: any) {
+    const dados = await this.chamadosService.listarSolicitacoesContratacao(usuarioLogado);
+    return { message: 'Solicitações de contratação.', total_encontrado: dados.length, dados };
+  }
+
+  // Aprova a solicitação e libera a solução pro cliente. Só Stellar.
+  @UseGuards(AuthGuard('jwt'))
+  @Post('solicitacoes/:id/aprovar')
+  async aprovarSolicitacao(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() usuarioLogado: any,
+    @Body() body: { url_acesso?: string },
+  ) {
+    return this.chamadosService.aprovarSolicitacao(usuarioLogado, id, body?.url_acesso);
+  }
+
   @UseGuards(AuthGuard('jwt'))
   @Get(':id')
   async buscarChamadoPorId(
@@ -94,21 +113,25 @@ export class ChamadosController {
   }
 
   // ── IA (Vertex): resumo, sentimento e sugestão de resposta ──
-  @RequirePermission('can_manage_users')
+  // IA interna: exclusiva da equipe Stellar (nem gestor de cliente acessa).
+  @UseGuards(AuthGuard('jwt'))
   @Get(':id/ia/resumo')
-  async iaResumo(@Param('id', ParseUUIDPipe) id: string) {
+  async iaResumo(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() usuarioLogado: any) {
+    await this.chamadosService.garantirStellar(usuarioLogado);
     return this.iaService.resumirChamado(id);
   }
 
-  @RequirePermission('can_manage_users')
+  @UseGuards(AuthGuard('jwt'))
   @Get(':id/ia/sentimento')
-  async iaSentimento(@Param('id', ParseUUIDPipe) id: string) {
+  async iaSentimento(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() usuarioLogado: any) {
+    await this.chamadosService.garantirStellar(usuarioLogado);
     return this.iaService.analisarSentimento(id);
   }
 
-  @RequirePermission('can_manage_users')
+  @UseGuards(AuthGuard('jwt'))
   @Get(':id/ia/sugestao')
-  async iaSugestao(@Param('id', ParseUUIDPipe) id: string) {
+  async iaSugestao(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() usuarioLogado: any) {
+    await this.chamadosService.garantirStellar(usuarioLogado);
     return this.iaService.sugerirResposta(id);
   }
 

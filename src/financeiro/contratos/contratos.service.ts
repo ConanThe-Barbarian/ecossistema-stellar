@@ -99,6 +99,16 @@ export class ContratosService {
     });
   }
 
+  // Salva a referência do arquivo do contrato assinado.
+  async salvarArquivoContrato(id: string, arquivo: string, nomeOriginal: string) {
+    await this.buscarPorId(id);
+    return this.prisma.contratos.update({
+      where: { id },
+      data: { arquivo_contrato: arquivo, arquivo_nome: nomeOriginal, updated_at: new Date() },
+      select: { id: true, arquivo_contrato: true, arquivo_nome: true },
+    });
+  }
+
   // Cancelar contrato: muda status e bloqueia o acesso às ferramentas
   async cancelar(id: string) {
     await this.buscarPorId(id);

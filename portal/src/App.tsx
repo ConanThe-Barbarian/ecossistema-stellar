@@ -10,7 +10,7 @@ import ChamadoDetalhe from './pages/ChamadoDetalhe';
 import Conta from './pages/Conta';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminDre from './pages/admin/AdminDre';
-import AdminConsumo from './pages/admin/AdminConsumo';
+import AdminConsumoIa from './pages/admin/AdminConsumoIa';
 import AdminClientes from './pages/admin/AdminClientes';
 import AdminKanban from './pages/admin/AdminKanban';
 import AdminPlanos from './pages/admin/AdminPlanos';
@@ -50,7 +50,7 @@ export default function App() {
         <Route path="conta" element={<Conta />} />
         <Route path="admin" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
         <Route path="admin/dre" element={<AdminRoute><AdminDre /></AdminRoute>} />
-        <Route path="admin/consumo" element={<AdminRoute><AdminConsumo /></AdminRoute>} />
+        <Route path="admin/consumo-ia" element={<AdminRoute><AdminConsumoIa /></AdminRoute>} />
         <Route path="admin/clientes" element={<AdminRoute><AdminClientes /></AdminRoute>} />
         <Route path="admin/kanban" element={<AdminRoute><AdminKanban /></AdminRoute>} />
         <Route path="admin/planos" element={<AdminRoute><AdminPlanos /></AdminRoute>} />

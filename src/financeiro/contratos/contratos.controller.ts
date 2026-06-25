@@ -7,13 +7,23 @@ import {
   Param,
   Query,
   Body,
+  Res,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   ParseUUIDPipe,
+  BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
+import type { Response } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { join, basename } from 'path';
+import { existsSync } from 'fs';
 import { ContratosService } from './contratos.service';
 import { CreateContratoDto } from './dto/create-contrato.dto';
 import { UpdateContratoDto } from './dto/update-contrato.dto';
 import { AddFerramentaDto } from './dto/add-ferramenta.dto';
+import { multerContratoConfig } from './upload-contrato.config';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { RequirePermission } from '../../auth/decorators/permissions.decorator';
 
@@ -58,6 +68,31 @@ export class ContratosController {
   async cancelar(@Param('id', ParseUUIDPipe) id: string) {
     console.log(`[Stellar Finance] Cancelando contrato ID: ${id}`);
     return this.contratosService.cancelar(id);
+  }
+
+  // ─── Arquivo do contrato assinado (upload/visualização) ───
+
+  @Post(':id/arquivo')
+  @RequirePermission('gestao:contratos')
+  @UseInterceptors(FileInterceptor('arquivo', multerContratoConfig))
+  async uploadArquivo(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('Nenhum arquivo enviado.');
+    return this.contratosService.salvarArquivoContrato(id, file.filename, file.originalname);
+  }
+
+  @Get(':id/arquivo')
+  @RequirePermission('gestao:contratos')
+  async baixarArquivo(@Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
+    const contrato = await this.contratosService.buscarPorId(id);
+    if (!contrato.arquivo_contrato) {
+      throw new NotFoundException('Este contrato ainda não tem arquivo anexado.');
+    }
+    const filePath = join(process.cwd(), 'uploads', 'contratos', basename(contrato.arquivo_contrato));
+    if (!existsSync(filePath)) throw new NotFoundException('Arquivo não encontrado no servidor.');
+    return res.sendFile(filePath);
   }
 
   // ─── Ferramentas Contratadas (SSO do Portal do Cliente) ───

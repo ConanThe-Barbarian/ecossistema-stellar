@@ -7,13 +7,13 @@ import {
   Lock,
   LayoutDashboard,
   DollarSign,
-  Zap,
   Building2,
   FileText,
   Briefcase,
   Users,
   KanbanSquare,
   ClipboardList,
+  Bot,
 } from 'lucide-react';
 import { usuarioLogado, ehFundador } from '../api';
 import NotificationBell from './NotificationBell';
@@ -74,8 +74,8 @@ export default function Layout() {
             <NavLink to="/admin/dre" className={linkClass}>
               <DollarSign size={ICON} /> Margem &amp; Rentabilidade
             </NavLink>
-            <NavLink to="/admin/consumo" className={linkClass}>
-              <Zap size={ICON} /> Consumo
+            <NavLink to="/admin/consumo-ia" className={linkClass}>
+              <Bot size={ICON} /> Consumo de IA
             </NavLink>
             <NavLink to="/admin/clientes" className={linkClass}>
               <Building2 size={ICON} /> Clientes

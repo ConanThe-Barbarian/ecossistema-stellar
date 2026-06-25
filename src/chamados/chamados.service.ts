@@ -18,6 +18,105 @@ export class ChamadosService {
     return s?.id ?? null;
   }
 
+  /** Bloqueia o acesso a quem não for da empresa Stellar (nem gestor de cliente passa). */
+  async garantirStellar(usuarioLogado: any): Promise<void> {
+    if (usuarioLogado?.perfil === 'Super Admin') return;
+    const stellarId = await this.getStellarId();
+    if (!stellarId || usuarioLogado?.empresa_id !== stellarId) {
+      throw new ForbiddenException('Acesso restrito à equipe Stellar.');
+    }
+  }
+
+  // Solicitações de contratação (categoria CONTRATACAO). Só Stellar.
+  async listarSolicitacoesContratacao(usuarioLogado: any) {
+    await this.garantirStellar(usuarioLogado);
+    const stellarId = await this.getStellarId();
+    const [chamados, servicos] = await Promise.all([
+      this.prisma.chamados.findMany({
+        where: { categoria: 'CONTRATACAO', empresa_responsavel_id: stellarId ?? undefined },
+        orderBy: { created_at: 'desc' },
+        include: {
+          usuarios_chamados_requerente_idTousuarios: { select: { nome: true } },
+          empresas_chamados_empresa_origem_idToempresas: { select: { razao_social: true } },
+        },
+      }),
+      this.prisma.servicos.findMany({ select: { id: true, nome: true, tipo: true } }),
+    ]);
+    const porNome = new Map(servicos.map((s) => [s.nome, s]));
+    return chamados.map((c) => {
+      const nomeServico = c.titulo.replace(/^Contratação:\s*/, '');
+      const serv = porNome.get(nomeServico);
+      return {
+        id: c.id,
+        titulo: c.titulo,
+        status: c.status,
+        created_at: c.created_at,
+        empresa: c.empresas_chamados_empresa_origem_idToempresas?.razao_social ?? null,
+        solicitante: c.usuarios_chamados_requerente_idTousuarios?.nome ?? null,
+        servico_nome: nomeServico,
+        servico_tipo: serv?.tipo ?? 'SERVICO',
+      };
+    });
+  }
+
+  // Aprova a solicitação e libera a solução pro cliente (ferramenta_contratada).
+  async aprovarSolicitacao(usuarioLogado: any, chamadoId: string, urlAcesso?: string) {
+    await this.garantirStellar(usuarioLogado);
+    const chamado = await this.prisma.chamados.findFirst({
+      where: { id: chamadoId, categoria: 'CONTRATACAO' },
+    });
+    if (!chamado) throw new NotFoundException('Solicitação não encontrada.');
+
+    const nomeServico = chamado.titulo.replace(/^Contratação:\s*/, '');
+    const servico = await this.prisma.servicos.findFirst({ where: { nome: nomeServico } });
+    if (!servico) throw new NotFoundException(`Serviço "${nomeServico}" não está no catálogo.`);
+
+    const contrato = await this.prisma.contratos.findFirst({
+      where: { empresa_id: chamado.empresa_origem_id, status: 'ATIVO' },
+      orderBy: { created_at: 'desc' },
+      select: { id: true },
+    });
+    if (!contrato) {
+      throw new BadRequestException(
+        'Este cliente não tem contrato ATIVO. Crie um contrato antes de liberar a solução.',
+      );
+    }
+
+    const data = {
+      status_acesso: 'LIBERADO',
+      url_acesso: urlAcesso ?? undefined,
+    };
+    const existente = await this.prisma.ferramentas_contratadas.findUnique({
+      where: { contrato_id_servico_id: { contrato_id: contrato.id, servico_id: servico.id } },
+    });
+    if (existente) {
+      await this.prisma.ferramentas_contratadas.update({
+        where: { contrato_id_servico_id: { contrato_id: contrato.id, servico_id: servico.id } },
+        data,
+      });
+    } else {
+      await this.prisma.ferramentas_contratadas.create({
+        data: { contrato_id: contrato.id, servico_id: servico.id, ...data },
+      });
+    }
+
+    // Marca a solicitação como resolvida + nota visível ao cliente.
+    await this.prisma.chamados.update({
+      where: { id: chamadoId },
+      data: { status: 'RESOLVIDO', updated_at: new Date() },
+    });
+    await this.prisma.interacoes.create({
+      data: {
+        chamado_id: chamadoId,
+        usuario_id: usuarioLogado.userId ?? usuarioLogado.id,
+        mensagem: `Solicitação aprovada! A solução "${servico.nome}" foi liberada no seu portal (Minhas Ferramentas).`,
+        is_nota_interna: false,
+      },
+    });
+
+    return { ok: true, servico: servico.nome, tipo: servico.tipo };
+  }
+
   async criarChamado(dados: CreateChamadoDto, usuarioLogado: any) {
     const empresaId = usuarioLogado.empresa_id;
     const usuarioId = usuarioLogado.userId ?? usuarioLogado.id;
@@ -131,8 +230,9 @@ async listarChamados(usuarioLogado: any) {
     const stellarId = await this.getStellarId();
     const ehStellar = !!stellarId && usuarioLogado.empresa_id === stellarId;
 
-    const filtro = ehStellar
-      ? { empresa_responsavel_id: stellarId! }
+    // Solicitações de contratação têm aba própria (Contratos) — fora da lista de suporte da Stellar.
+    const filtro: any = ehStellar
+      ? { empresa_responsavel_id: stellarId!, categoria: { not: 'CONTRATACAO' } }
       : { empresa_origem_id: usuarioLogado.empresa_id };
 
     // 2. A Busca Inteligente (Ordenando pela "bomba" que vai estourar primeiro)

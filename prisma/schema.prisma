@@ -59,8 +59,58 @@ model consumo_variavel {
   mes_referencia     String   @db.VarChar(7)
   qtd_tokens         Int      @default(0, map: "DF__consumo_v__qtd_t__29221CFB")
   custo_gerado_reais Decimal  @default(0.00, map: "DF__consumo_v__custo__2A164134") @db.Decimal(18, 2)
+  origem             String   @default("MANUAL") @db.NVarChar(40)
   created_at         DateTime @default(now(), map: "DF__consumo_v__creat__2B0A656D")
   empresas           empresas @relation(fields: [empresa_id], references: [id], onUpdate: NoAction, map: "FK_Consumo_Empresas")
+}
+
+/// Ledger detalhado de consumo de tokens dos agentes de IA (n8n).
+/// Uma linha por execução de agente. Alimenta os recortes diário/semanal/mensal/detalhado.
+model consumo_ia {
+  id              String   @id(map: "PK_consumo_ia") @default(dbgenerated("newid()")) @db.UniqueIdentifier
+  empresa_id      String   @db.UniqueIdentifier
+  agente          String?  @db.NVarChar(120)
+  modelo          String?  @db.NVarChar(80)
+  origem          String   @default("n8n") @db.NVarChar(40)
+  tokens_prompt   Int      @default(0)
+  tokens_resposta Int      @default(0)
+  tokens_total    Int      @default(0)
+  custo_reais     Decimal  @default(0.0000) @db.Decimal(18, 4)
+  referencia      String?  @db.NVarChar(200)
+  ocorrido_em     DateTime @default(now())
+  created_at      DateTime @default(now())
+  empresas        empresas @relation(fields: [empresa_id], references: [id], onUpdate: NoAction, map: "FK_ConsumoIa_Empresas")
+
+  @@index([empresa_id, ocorrido_em], map: "IX_consumo_ia_empresa_data")
+  @@index([ocorrido_em], map: "IX_consumo_ia_data")
+}
+
+/// Catálogo de modelos de IA com preços (USD por 1.000.000 de tokens).
+model modelos_ia {
+  id                String       @id(map: "PK_modelos_ia") @default(dbgenerated("newid()")) @db.UniqueIdentifier
+  nome              String       @db.NVarChar(120)
+  slug              String       @unique(map: "UQ_modelos_ia_slug") @db.NVarChar(120)
+  preco_entrada_usd Decimal      @default(0) @db.Decimal(18, 6)
+  preco_saida_usd   Decimal      @default(0) @db.Decimal(18, 6)
+  ativo             Boolean      @default(true)
+  padrao            Boolean      @default(false)
+  created_at        DateTime     @default(now())
+  agentes_ia        agentes_ia[]
+}
+
+/// Vínculo agente (de um cliente) -> modelo escolhido. Define com qual modelo
+/// o custo das novas execuções daquele agente é calculado.
+model agentes_ia {
+  id         String      @id(map: "PK_agentes_ia") @default(dbgenerated("newid()")) @db.UniqueIdentifier
+  empresa_id String      @db.UniqueIdentifier
+  agente     String      @db.NVarChar(160)
+  modelo_id  String?     @db.UniqueIdentifier
+  created_at DateTime    @default(now())
+  updated_at DateTime    @default(now())
+  empresas   empresas    @relation(fields: [empresa_id], references: [id], onUpdate: NoAction, map: "FK_AgentesIa_Empresas")
+  modelos_ia modelos_ia? @relation(fields: [modelo_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "FK_AgentesIa_Modelos")
+
+  @@unique([empresa_id, agente], map: "UQ_agentes_ia_empresa_agente")
 }
 
 model contratos {
@@ -69,6 +119,9 @@ model contratos {
   plano_id                String                    @db.UniqueIdentifier
   valor_mensalidade       Decimal                   @db.Decimal(18, 2)
   dia_vencimento          Int
+  teto_ia_reais           Decimal?                  @db.Decimal(18, 2)
+  arquivo_contrato        String?                   @db.NVarChar(300)
+  arquivo_nome            String?                   @db.NVarChar(255)
   status                  String                    @default("ATIVO", map: "DF__contratos__statu__1AD3FDA4") @db.VarChar(20)
   created_at              DateTime                  @default(now(), map: "DF__contratos__creat__1CBC4616")
   updated_at              DateTime                  @default(now(), map: "DF__contratos__updat__1DB06A4F")
@@ -100,6 +153,8 @@ model empresas {
   chamados_chamados_empresa_origem_idToempresas      chamados[]         @relation("chamados_empresa_origem_idToempresas")
   chamados_chamados_empresa_responsavel_idToempresas chamados[]         @relation("chamados_empresa_responsavel_idToempresas")
   consumo_variavel                                   consumo_variavel[]
+  consumo_ia                                         consumo_ia[]
+  agentes_ia                                         agentes_ia[]
   custos_fixos                                       custos_fixos[]
   contratos                                          contratos[]
   faturas                                            faturas[]
@@ -177,6 +232,7 @@ model servicos {
   nome                    String                    @db.NVarChar(100)
   descricao               String?                   @db.NVarChar(255)
   icone_url               String?                   @db.NVarChar(Max)
+  tipo                    String                    @default("ACESSO") @db.NVarChar(20)
   status                  String                    @default("ATIVO", map: "DF__servicos__status__0C85DE4D") @db.VarChar(20)
   created_at              DateTime                  @default(now(), map: "DF__servicos__create__0E6E26BF")
   updated_at              DateTime                  @default(now(), map: "DF__servicos__update__0F624AF8")

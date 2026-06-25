@@ -16,6 +16,7 @@ import { EmpresasModule } from './empresas/empresas.module';
 import { ServicosModule } from './servicos/servicos.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { PortalModule } from './portal/portal.module';
+import { ConsumoIaModule } from './consumo-ia/consumo-ia.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { PortalModule } from './portal/portal.module';
     ServicosModule,
     DashboardModule,
     PortalModule,
+    ConsumoIaModule,
     // Configuração: Limita a 100 requisições por minuto por IP
     ThrottlerModule.forRoot([{
       ttl: 60000, // Tempo em milissegundos (60 segundos)

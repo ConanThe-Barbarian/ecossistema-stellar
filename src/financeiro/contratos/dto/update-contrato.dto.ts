@@ -32,6 +32,11 @@ export class UpdateContratoDto {
   dia_vencimento?: number;
 
   @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  teto_ia_reais?: number;
+
+  @IsOptional()
   @IsEnum(StatusContrato)
   status?: StatusContrato;
 }

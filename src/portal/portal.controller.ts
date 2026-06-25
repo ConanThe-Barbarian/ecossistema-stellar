@@ -1,4 +1,4 @@
-import { Controller, Get, Req } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Req } from '@nestjs/common';
 import { PortalService } from './portal.service';
 import type { AuthenticatedRequest } from '../auth/types/auth.types';
 
@@ -26,6 +26,16 @@ export class PortalController {
 
   @Get('notificacoes')
   async notificacoes(@Req() req: AuthenticatedRequest) {
-    return this.portalService.notificacoes(req.user.empresa_id);
+    return this.portalService.notificacoes(req.user);
+  }
+
+  // "Contratar" uma solução do catálogo: abre solicitação interna pra Stellar.
+  @Post('contratar/:servicoId')
+  async contratar(
+    @Req() req: AuthenticatedRequest,
+    @Param('servicoId') servicoId: string,
+    @Body() body: { respostas?: { label: string; valor: string }[] },
+  ) {
+    return this.portalService.contratar(req.user, servicoId, body?.respostas);
   }
 }

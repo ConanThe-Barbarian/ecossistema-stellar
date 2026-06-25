@@ -8,6 +8,14 @@ interface Plano {
   tipo_preco: string;
   valor_base: number | string;
 }
+interface Servico {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  tipo: string;
+  icone_url: string | null;
+  status: string;
+}
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -18,6 +26,8 @@ export default function AdminPlanos() {
   const [tipo, setTipo] = useState('FIXO');
   const [valor, setValor] = useState('');
   const [salvando, setSalvando] = useState(false);
+  const [servicos, setServicos] = useState<Servico[]>([]);
+  const [novoServ, setNovoServ] = useState({ nome: '', descricao: '', tipo: 'SERVICO' });
   const { confirm } = useConfirm();
 
   const carregar = useCallback(() => {
@@ -27,9 +37,41 @@ export default function AdminPlanos() {
       .catch((err) => setErro(mensagemDeErro(err, 'Erro ao carregar planos')));
   }, []);
 
+  const carregarServicos = useCallback(() => {
+    api
+      .get('/servicos')
+      .then(({ data }) => setServicos(desembrulhar<Servico[]>(data) ?? []))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     carregar();
-  }, [carregar]);
+    carregarServicos();
+  }, [carregar, carregarServicos]);
+
+  async function salvarServico(s: Servico, patch: Partial<Servico>) {
+    try {
+      await api.patch(`/servicos/${s.id}`, patch);
+      carregarServicos();
+    } catch (err) {
+      setErro(mensagemDeErro(err, 'Erro ao salvar serviço'));
+    }
+  }
+
+  async function criarServico() {
+    if (!novoServ.nome) return;
+    try {
+      await api.post('/servicos', {
+        nome: novoServ.nome,
+        descricao: novoServ.descricao || undefined,
+        tipo: novoServ.tipo,
+      });
+      setNovoServ({ nome: '', descricao: '', tipo: 'SERVICO' });
+      carregarServicos();
+    } catch (err) {
+      setErro(mensagemDeErro(err, 'Erro ao criar serviço'));
+    }
+  }
 
   async function criar(e: React.FormEvent) {
     e.preventDefault();
@@ -132,6 +174,61 @@ export default function AdminPlanos() {
             </tbody>
           </table>
         )}
+      </div>
+
+      <h1 style={{ marginTop: '2rem' }}>Catálogo de Serviços</h1>
+      <p className="muted" style={{ marginBottom: '1rem' }}>
+        Soluções vendidas pela Stellar. <strong>Acesso</strong> = tem login/plataforma (ex.: GalaxIA).
+        <strong> Serviço</strong> = recorrente/projeto, sem login (ex.: Infraestrutura, Suporte Técnico).
+      </p>
+      <div className="card">
+        <table>
+          <thead>
+            <tr><th>Nome</th><th>Descrição</th><th>Tipo</th><th>Ícone (URL)</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            {servicos.map((s) => (
+              <tr key={s.id}>
+                <td>
+                  <input defaultValue={s.nome} style={{ minWidth: 130 }}
+                    onBlur={(e) => e.target.value !== s.nome && salvarServico(s, { nome: e.target.value })} />
+                </td>
+                <td>
+                  <input defaultValue={s.descricao ?? ''} style={{ minWidth: 200 }}
+                    onBlur={(e) => e.target.value !== (s.descricao ?? '') && salvarServico(s, { descricao: e.target.value })} />
+                </td>
+                <td>
+                  <select defaultValue={s.tipo} onChange={(e) => salvarServico(s, { tipo: e.target.value })}>
+                    <option value="ACESSO">Acesso (login)</option>
+                    <option value="SERVICO">Serviço</option>
+                  </select>
+                </td>
+                <td>
+                  <input defaultValue={s.icone_url ?? ''} placeholder="opcional" style={{ minWidth: 140 }}
+                    onBlur={(e) => e.target.value !== (s.icone_url ?? '') && salvarServico(s, { icone_url: e.target.value })} />
+                </td>
+                <td>
+                  <select defaultValue={s.status} onChange={(e) => salvarServico(s, { status: e.target.value })}>
+                    <option value="ATIVO">Ativo</option>
+                    <option value="INATIVO">Inativo</option>
+                  </select>
+                </td>
+              </tr>
+            ))}
+            <tr>
+              <td><input placeholder="Nova solução" value={novoServ.nome} onChange={(e) => setNovoServ((n) => ({ ...n, nome: e.target.value }))} /></td>
+              <td><input placeholder="Descrição" value={novoServ.descricao} onChange={(e) => setNovoServ((n) => ({ ...n, descricao: e.target.value }))} /></td>
+              <td>
+                <select value={novoServ.tipo} onChange={(e) => setNovoServ((n) => ({ ...n, tipo: e.target.value }))}>
+                  <option value="ACESSO">Acesso (login)</option>
+                  <option value="SERVICO">Serviço</option>
+                </select>
+              </td>
+              <td></td>
+              <td><button className="btn" style={{ fontSize: 12, padding: '4px 10px' }} onClick={criarServico}>Adicionar</button></td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </>
   );

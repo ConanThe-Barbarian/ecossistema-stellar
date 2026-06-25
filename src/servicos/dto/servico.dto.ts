@@ -11,6 +11,11 @@ export enum StatusServico {
   INATIVO = 'INATIVO',
 }
 
+export enum TipoServico {
+  ACESSO = 'ACESSO', // tem plataforma/login (SSO) — ex.: GalaxIA
+  SERVICO = 'SERVICO', // serviço/projeto recorrente, sem login — ex.: Infra, Suporte
+}
+
 // Catálogo de ferramentas/serviços da Stellar (ex: GalaxIA)
 export class CreateServicoDto {
   @IsString()
@@ -26,6 +31,10 @@ export class CreateServicoDto {
   @IsOptional()
   @IsString()
   icone_url?: string;
+
+  @IsOptional()
+  @IsEnum(TipoServico)
+  tipo?: TipoServico;
 }
 
 export class UpdateServicoDto {
@@ -42,6 +51,10 @@ export class UpdateServicoDto {
   @IsOptional()
   @IsString()
   icone_url?: string;
+
+  @IsOptional()
+  @IsEnum(TipoServico)
+  tipo?: TipoServico;
 
   @IsOptional()
   @IsEnum(StatusServico)
